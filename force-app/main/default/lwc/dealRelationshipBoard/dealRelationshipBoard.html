@@ -1,0 +1,98 @@
+<!--
+  dealRelationshipBoard.html
+  ARC-style relationship graph: toolbar + central deal node + connector lines
+  fanning out to role columns, each with a header and participant card(s).
+-->
+<template>
+    <div class="arc-board">
+
+        <!-- ===== Toolbar ===== -->
+        <div class="arc-toolbar">
+            <div class="arc-toolbar__left">
+                <span class="arc-toolbar__label">Show fields on cards</span>
+                <label class="slds-checkbox_toggle slds-grid">
+                    <input
+                        type="checkbox"
+                        checked={showFields}
+                        onchange={handleToggleFields} />
+                    <span class="slds-checkbox_faux_container" aria-live="assertive">
+                        <span class="slds-checkbox_faux"></span>
+                    </span>
+                </label>
+            </div>
+
+            <div class="arc-toolbar__right">
+                <lightning-button-icon icon-name="utility:dash" variant="border-filled" alternative-text="Zoom out" class="arc-tool-btn"></lightning-button-icon>
+                <lightning-button-icon icon-name="utility:steps" variant="border-filled" alternative-text="Fit" class="arc-tool-btn"></lightning-button-icon>
+                <lightning-button-icon icon-name="utility:layout" variant="brand" alternative-text="Layout" class="arc-tool-btn"></lightning-button-icon>
+                <lightning-button-icon icon-name="utility:refresh" variant="border-filled" alternative-text="Refresh" class="arc-tool-btn"></lightning-button-icon>
+            </div>
+        </div>
+
+        <!-- ===== Canvas ===== -->
+        <div class="arc-canvas">
+
+            <!-- Central deal node -->
+            <div class="arc-deal-wrap">
+                <div class="arc-deal-node">
+                    <lightning-icon icon-name="standard:opportunity" size="x-small" class="arc-deal-icon"></lightning-icon>
+                    <span class="arc-deal-name slds-truncate" title={dealName}>{dealName}</span>
+                </div>
+            </div>
+
+            <!-- Connector lines (vertical stems + horizontal bus) -->
+            <div class="arc-connectors">
+                <div class="arc-connector-stem-down"></div>
+                <div class="arc-connector-bus"></div>
+            </div>
+
+            <!-- Relationship columns -->
+            <div class="arc-columns">
+                <template for:each={decoratedGroups} for:item="group">
+                    <div key={group.key} class="arc-column">
+                        <div class="arc-stem-up"></div>
+
+                        <!-- Group header -->
+                        <div class="arc-group-header">
+                            <button class="arc-chevron-btn" data-key={group.key} onclick={handleToggleGroup} title="Toggle group">
+                                <lightning-icon icon-name={group.chevron} size="xx-small"></lightning-icon>
+                            </button>
+                            <span class={group.iconClass}>
+                                <lightning-icon icon-name={group.icon} size="xx-small" variant="inverse"></lightning-icon>
+                            </span>
+                            <span class="arc-group-label">{group.label}</span>
+                            <span class="arc-group-count">{group.count}</span>
+
+                            <template lwc:if={group.showNew}>
+                                <button class="arc-new-btn" data-key={group.key} onclick={handleNew}>New</button>
+                            </template>
+                        </div>
+
+                        <!-- Cards -->
+                        <template lwc:if={group.collapsed}></template>
+                        <template lwc:else>
+                            <template for:each={group.cards} for:item="card">
+                                <div key={card.id} class="arc-card">
+                                    <div class="arc-card__header">
+                                        <span class="arc-card__title slds-truncate" title={card.title}>{card.title}</span>
+                                        <lightning-icon icon-name="utility:hierarchy" size="xx-small" class="arc-card__hierarchy"></lightning-icon>
+                                    </div>
+                                    <template lwc:if={card.visibleFields.length}>
+                                        <div class="arc-card__body">
+                                            <template for:each={card.visibleFields} for:item="field">
+                                                <div key={field.key} class="arc-field">
+                                                    <span class="arc-field__label">{field.label}</span>
+                                                    <span class="arc-field__value slds-truncate" title={field.value}>{field.value}</span>
+                                                </div>
+                                            </template>
+                                        </div>
+                                    </template>
+                                </div>
+                            </template>
+                        </template>
+                    </div>
+                </template>
+            </div>
+        </div>
+    </div>
+</template>

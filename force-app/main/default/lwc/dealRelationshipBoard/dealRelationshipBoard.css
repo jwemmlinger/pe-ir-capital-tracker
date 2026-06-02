@@ -1,0 +1,215 @@
+/* dealRelationshipBoard.css — ARC-style relationship graph */
+
+:host {
+    display: block;
+}
+
+.arc-board {
+    background: #ffffff;
+    border: 1px solid #e5e5e5;
+    border-radius: 0.5rem;
+    padding: 0.75rem 1rem 1.5rem;
+    font-size: 0.8125rem;
+    color: #181818;
+    overflow-x: auto;
+}
+
+/* ===== Toolbar ===== */
+.arc-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1.25rem;
+}
+.arc-toolbar__left {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+.arc-toolbar__label {
+    font-size: 0.75rem;
+    color: #444;
+}
+.arc-toolbar__right {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    border: 1px solid #dddbda;
+    border-radius: 0.25rem;
+    padding: 0.125rem;
+    background: #fff;
+}
+.arc-tool-btn {
+    --slds-c-button-radius-border: 0.25rem;
+}
+
+/* ===== Canvas ===== */
+.arc-canvas {
+    position: relative;
+    min-width: 1000px;
+}
+
+/* Central deal node */
+.arc-deal-wrap {
+    display: flex;
+    justify-content: center;
+}
+.arc-deal-node {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    background: #ffffff;
+    border: 1px solid #c9c7c5;
+    border-radius: 1rem;
+    padding: 0.25rem 0.75rem 0.25rem 0.375rem;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+    max-width: 320px;
+}
+.arc-deal-icon {
+    --sds-c-icon-color-background: #2e844a;
+}
+.arc-deal-name {
+    color: #0b5cab;
+    font-weight: 600;
+    max-width: 260px;
+}
+
+/* ===== Connectors ===== */
+.arc-connectors {
+    position: relative;
+    height: 28px;
+}
+.arc-connector-stem-down {
+    position: absolute;
+    left: 50%;
+    top: 0;
+    width: 1px;
+    height: 14px;
+    background: #c9c7c5;
+    transform: translateX(-50%);
+}
+.arc-connector-bus {
+    position: absolute;
+    top: 14px;
+    /* span the centers of the first and last columns (10% .. 90%) */
+    left: 10%;
+    right: 10%;
+    height: 1px;
+    background: #c9c7c5;
+}
+
+/* ===== Columns ===== */
+.arc-columns {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 1rem;
+    align-items: start;
+}
+.arc-column {
+    position: relative;
+    padding-top: 14px;
+}
+.arc-stem-up {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    width: 1px;
+    height: 14px;
+    background: #c9c7c5;
+    transform: translateX(-50%);
+}
+
+/* ===== Group header ===== */
+.arc-group-header {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.25rem 0.375rem;
+}
+.arc-chevron-btn,
+.arc-new-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+}
+.arc-chevron-btn {
+    color: #706e6b;
+}
+.arc-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.25rem;
+    height: 1.25rem;
+    border-radius: 0.25rem;
+}
+.arc-icon_blue { background: #0176d3; }
+.arc-icon_indigo { background: #5867e8; }
+.arc-icon_teal { background: #0b827c; }
+.arc-icon_green { background: #2e844a; }
+.arc-icon_orange { background: #dd7a01; }
+
+.arc-group-label {
+    font-weight: 600;
+    color: #181818;
+}
+.arc-group-count {
+    color: #706e6b;
+    font-weight: 400;
+}
+.arc-new-btn {
+    margin-left: auto;
+    border: 1px solid #0176d3;
+    color: #0176d3;
+    border-radius: 0.25rem;
+    padding: 0.0625rem 0.5rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+.arc-new-btn:hover {
+    background: #f3f9fe;
+}
+
+/* ===== Cards ===== */
+.arc-card {
+    background: #ffffff;
+    border: 1px solid #dddbda;
+    border-radius: 0.25rem;
+    border-top: 3px solid #0176d3;
+    margin-top: 0.375rem;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+.arc-card__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.5rem 0.625rem;
+}
+.arc-card__title {
+    color: #0b5cab;
+    font-weight: 600;
+}
+.arc-card__hierarchy {
+    --slds-c-icon-color-foreground-default: #706e6b;
+}
+.arc-card__body {
+    border-top: 1px solid #f0f0f0;
+    padding: 0.375rem 0.625rem 0.5rem;
+}
+.arc-field {
+    display: flex;
+    flex-direction: column;
+    padding: 0.1875rem 0;
+}
+.arc-field__label {
+    font-size: 0.6875rem;
+    color: #706e6b;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+}
+.arc-field__value {
+    color: #181818;
+}
