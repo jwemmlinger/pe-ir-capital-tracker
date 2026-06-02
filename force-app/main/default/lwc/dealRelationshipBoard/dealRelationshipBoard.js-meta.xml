@@ -3,18 +3,40 @@
     <apiVersion>62.0</apiVersion>
     <isExposed>true</isExposed>
     <masterLabel>Deal Relationship Board</masterLabel>
-    <description>ARC-style relationship graph: a central PE deal node fanning out to role-based relationship groups (co-investors, deal team, counsel, target, intermediaries).</description>
+    <description>ARC-style relationship graph: a central PE deal node fanning out to role-based relationship groups. Fully customizable via properties and an optional groups JSON.</description>
     <targets>
         <target>lightning__RecordPage</target>
         <target>lightning__AppPage</target>
         <target>lightning__HomePage</target>
     </targets>
     <targetConfigs>
-        <targetConfig targets="lightning__RecordPage">
-            <property name="dealName" type="String" label="Deal Node Label" description="Title shown in the central deal node."/>
-        </targetConfig>
-        <targetConfig targets="lightning__AppPage,lightning__HomePage">
-            <property name="dealName" type="String" label="Deal Node Label" description="Title shown in the central deal node."/>
+        <targetConfig targets="lightning__RecordPage,lightning__AppPage,lightning__HomePage">
+            <property name="dealName" type="String" label="Deal Node Label"
+                description="Title shown in the central deal node."
+                default="*Census, Inc. // $22m // Series B"/>
+            <property name="dealIcon" type="String" label="Deal Node Icon"
+                description="SLDS icon for the central node, e.g. standard:opportunity."
+                default="standard:opportunity"/>
+            <property name="accentColor" type="String" label="Accent Color"
+                description="Accent color for the deal icon and card top borders (any CSS color / hex)."
+                default="#0176d3"/>
+            <property name="columnsPerRow" type="Integer" label="Columns Per Row"
+                description="How many relationship groups to show per row before wrapping."
+                default="5" min="1" max="8"/>
+            <property name="showFieldsByDefault" type="Boolean" label="Show Fields By Default"
+                description="Initial state of the 'Show fields on cards' toggle."
+                default="true"/>
+            <property name="startCollapsed" type="Boolean" label="Start Groups Collapsed"
+                description="If checked, all groups start collapsed."
+                default="false"/>
+            <property name="hideToggle" type="Boolean" label="Hide Fields Toggle"
+                description="Hide the 'Show fields on cards' toggle."
+                default="false"/>
+            <property name="hideToolbar" type="Boolean" label="Hide Toolbar"
+                description="Hide the entire top toolbar."
+                default="false"/>
+            <property name="groupsJson" type="String" label="Groups (JSON)"
+                description="Optional JSON array that fully redefines the board (groups, icons, colors, cards, fields). Leave blank to use the default PE board."/>
         </targetConfig>
     </targetConfigs>
 </LightningComponentBundle>

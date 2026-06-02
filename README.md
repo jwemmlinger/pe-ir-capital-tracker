@@ -1,8 +1,13 @@
-# PE IR Capital & Pipeline Tracker
+# PE Investor Relations — Salesforce LWC Suite
 
-A production-grade **Lightning Web Component (LWC)** for a Private Equity (PE) firm's **Investor Relations (IR)** team, built on **Salesforce Financial Services Cloud (FSC)**.
+A suite of production-grade **Lightning Web Components (LWCs)** for a Private Equity (PE) firm's **Investor Relations (IR)** team, built on **Salesforce Financial Services Cloud (FSC)**.
 
-It sits on an institutional **Limited Partner (LP)** Account record page and visualizes capital commitments, called/uncalled capital, distributions, PE performance multiples, the capital-call/distribution ledger, and the active fundraising pipeline — with a one-click flow to convert a won opportunity into a funded commitment.
+The suite contains two components:
+
+| Component | Purpose | Surface |
+|---|---|---|
+| **`irCapitalTracker`** | Capital commitments, drawdown gauge, PE multiples, ledger, fundraising pipeline, and fund vehicles for an institutional LP | Account record page |
+| **`dealRelationshipBoard`** | An Actionable Relationship Center (ARC)-style graph of a PE deal's participants (co-investors, deal team, counsel, target, intermediaries) | Record / App / Home page |
 
 ![Tab 1 — Capital Performance & Ledger](docs/screenshot-capital.png)
 
@@ -10,20 +15,26 @@ It sits on an institutional **Limited Partner (LP)** Account record page and vis
 
 ## Table of Contents
 
-- [Features](#features)
-- [Architecture & Data Model](#architecture--data-model)
-- [PE Financial Logic](#pe-financial-logic)
+- [Component 1 — IR Capital & Pipeline Tracker](#component-1--ir-capital--pipeline-tracker)
+  - [Features](#features)
+  - [Architecture & Data Model](#architecture--data-model)
+  - [PE Financial Logic](#pe-financial-logic)
+- [Component 2 — Deal Relationship Board](#component-2--deal-relationship-board)
 - [Repository Structure](#repository-structure)
 - [Prerequisites](#prerequisites)
 - [Deployment](#deployment)
 - [Field-Level Security](#field-level-security)
 - [Seeding Demo Data](#seeding-demo-data)
-- [Adding the Component to a Page](#adding-the-component-to-a-page)
+- [Adding the Components to a Page](#adding-the-components-to-a-page)
 - [Component Reference](#component-reference)
 - [Customization Notes](#customization-notes)
 - [Troubleshooting](#troubleshooting)
 
 ---
+
+# Component 1 — IR Capital & Pipeline Tracker
+
+`irCapitalTracker` sits on an institutional **Limited Partner (LP)** Account record page and visualizes capital commitments, called/uncalled capital, distributions, PE performance multiples, the capital-call/distribution ledger, the active fundraising pipeline, and the linked fund vehicles — with a one-click flow to convert a won opportunity into a funded commitment.
 
 ## Features
 
@@ -89,6 +100,33 @@ All performance multiples are expressed relative to **paid-in (called) capital**
 
 ---
 
+# Component 2 — Deal Relationship Board
+
+`dealRelationshipBoard` is an **Actionable Relationship Center (ARC)-style** graph that visualizes the network of participants around a single PE deal. A central deal node fans out — via CSS connector lines (a vertical stem into a horizontal bus, with stems rising into each column) — to five role-based relationship groups.
+
+```
+                         ┌───────────────────────────────────┐
+                         │ ⬡ *Census, Inc. // $22m // Series B │   ← central deal node
+                         └─────────────────┬─────────────────┘
+        ┌───────────────┬──────────────────┼──────────────────┬───────────────┐
+   Co-Investors     Deal Team        Legal Counsel       Target PortCo    Intermediaries
+     [FDP-0013]     [FDP-0014]        [FDP-0015]          [FDP-0016]        [FDP-0017]
+```
+
+### Features
+- **Toolbar** — a functional *"Show fields on cards"* toggle that expands/collapses the field section on every card, plus a zoom/fit/layout/refresh button cluster.
+- **Central deal node** — a rounded pill with an icon and the deal label (configurable via the `dealName` property in App Builder).
+- **Five relationship groups** — Co-Investors, Deal Team, Legal Counsel, Target PortCo, Intermediaries. Each group header has a colored role icon, label, live **count badge**, a **collapse chevron**, and (on Co-Investors) a **New** action button.
+- **Participant cards** — each card shows a record title, a hierarchy icon, and (when the toggle is on) a set of labeled fields.
+- **Connector graph** — pure CSS/HTML, no external charting library or static resources.
+
+### Design notes
+- **Data-driven:** the entire board is rendered from the `groups` array in `dealRelationshipBoard.js`. Each entry defines a role (`label`, `icon`, `iconClass`), its `cards`, and per-card `fields`. Swap this array for an `@wire` to Apex to make it live.
+- **No Apex required:** the component is self-contained and deploys on its own — useful as a visual/demo board or a starting point for a wired relationship object (e.g. a `Deal_Relationship__c` junction).
+- **Exposed** to `lightning__RecordPage`, `lightning__AppPage`, and `lightning__HomePage`.
+
+---
+
 ## Repository Structure
 
 ```
@@ -102,11 +140,17 @@ pe-ir-capital-tracker/
     ├── classes/
     │   ├── IRCapitalTrackerController.cls
     │   └── IRCapitalTrackerController.cls-meta.xml
-    ├── lwc/irCapitalTracker/
-    │   ├── irCapitalTracker.html
-    │   ├── irCapitalTracker.js
-    │   ├── irCapitalTracker.css
-    │   └── irCapitalTracker.js-meta.xml
+    ├── lwc/
+    │   ├── irCapitalTracker/         # Component 1 — capital tracker
+    │   │   ├── irCapitalTracker.html
+    │   │   ├── irCapitalTracker.js
+    │   │   ├── irCapitalTracker.css
+    │   │   └── irCapitalTracker.js-meta.xml
+    │   └── dealRelationshipBoard/    # Component 2 — ARC-style deal board
+    │       ├── dealRelationshipBoard.html
+    │       ├── dealRelationshipBoard.js
+    │       ├── dealRelationshipBoard.css
+    │       └── dealRelationshipBoard.js-meta.xml
     ├── objects/                      # Custom field metadata
     │   ├── FinServ__FinancialAccount__c/fields/
     │   ├── FinServ__FinancialAccountTransaction__c/fields/
@@ -142,7 +186,11 @@ pe-ir-capital-tracker/
    sf project deploy start --target-org myorg
    ```
 
-This deploys the Apex controller, the LWC bundle, and all six custom fields in a single transaction.
+This deploys both LWC bundles, the Apex controller, and all six custom fields in a single transaction. To deploy only the standalone board (no Apex/fields needed):
+
+```bash
+sf project deploy start --target-org myorg --metadata "LightningComponentBundle:dealRelationshipBoard"
+```
 
 ---
 
@@ -186,14 +234,21 @@ To grant other users access, either add the fields to their permission set or ex
 
 ---
 
-## Adding the Component to a Page
+## Adding the Components to a Page
 
+### IR Capital & Pipeline Tracker
 1. Open any **Account** record.
 2. Click the gear ⚙️ → **Edit Page**.
 3. Drag **"IR Capital & Pipeline Tracker"** from the custom components onto the canvas (or into a new tab).
 4. **Save** and **Activate** the page.
 
 The component is restricted to `lightning__RecordPage` on the **Account** object via its `*.js-meta.xml`.
+
+### Deal Relationship Board
+1. Open any record / app / home page → ⚙️ → **Edit Page**.
+2. Drag **"Deal Relationship Board"** onto the canvas.
+3. In the property panel, customize it (see [Customizing the Deal Relationship Board](#customizing-the-deal-relationship-board)).
+4. **Save** and **Activate**.
 
 ---
 
@@ -212,10 +267,16 @@ The component is restricted to `lightning__RecordPage` on the **Account** object
 All SOQL uses `WITH SECURITY_ENFORCED`; numeric values are null-coalesced to `0`; errors surface as `AuraHandledException`.
 
 ### `irCapitalTracker` (LWC)
-- `@wire` to both cacheable Apex methods.
+- `@wire` to all three cacheable Apex methods.
 - A single reactive `metrics` getter drives all KPIs, the gauge `stroke-dashoffset`, and the multiples — they recompute on filter change or data refresh.
-- `refreshApex()` repaints both datasets after an activation.
+- `refreshApex()` repaints datasets after an activation.
 - Toast notifications via `ShowToastEvent`.
+
+### `dealRelationshipBoard` (LWC)
+- Self-contained (no Apex). Renders entirely from the `groups` array, seeded by `DEFAULT_GROUPS` or the `groupsJson` property.
+- Eight App Builder properties make the deal label, icon, accent color, layout, toolbar, and toggle fully configurable without code (see [Customizing the Deal Relationship Board](#customizing-the-deal-relationship-board)).
+- Collapsible groups, a field-visibility toggle, and a `newrecord` custom event on the **New** button.
+- Connector graph is pure CSS/HTML — no charting library or static resources.
 
 ---
 
@@ -224,6 +285,65 @@ All SOQL uses `WITH SECURITY_ENFORCED`; numeric values are null-coalesced to `0`
 - **Kanban bucketing:** opportunities are grouped into columns by keyword-matching `StageName` (e.g. *Negotiation*, *Closing*, *Legal*, *Subscription* → Legal/Subscription Review). Adjust the `isProspecting` / `isLegal` helpers in `irCapitalTracker.js` to match your stage names.
 - **Activation stage:** `finalizeOpportunitySubscription` sets `StageName = 'Closed Won'`. Change this if your org uses a different won stage (e.g. *Closed - Funded*).
 - **Metric fields as roll-ups:** to make the capital metrics live, replace the Currency fields with roll-up summaries / formulas over `FinServ__FinancialAccountTransaction__c`.
+
+### Customizing the Deal Relationship Board
+
+The board is **fully customizable from Lightning App Builder** — no code changes required. Drop it on a page and edit these properties in the right-hand panel:
+
+| Property | Type | Default | What it controls |
+|---|---|---|---|
+| **Deal Node Label** (`dealName`) | Text | `*Census, Inc. // $22m // Series B` | The text in the central node |
+| **Deal Node Icon** (`dealIcon`) | Text | `standard:opportunity` | Any [SLDS icon](https://www.lightningdesignsystem.com/icons/) name |
+| **Accent Color** (`accentColor`) | Text | `#0176d3` | Deal-icon background + card top borders (any CSS color/hex) |
+| **Columns Per Row** (`columnsPerRow`) | Integer | `5` | Groups per row before wrapping (1–8) |
+| **Show Fields By Default** (`showFieldsByDefault`) | Checkbox | ✅ | Initial toggle state |
+| **Start Groups Collapsed** (`startCollapsed`) | Checkbox | ☐ | Collapse all groups on load |
+| **Hide Fields Toggle** (`hideToggle`) | Checkbox | ☐ | Remove the toggle |
+| **Hide Toolbar** (`hideToolbar`) | Checkbox | ☐ | Remove the whole top toolbar |
+| **Groups (JSON)** (`groupsJson`) | Text | *(blank → default board)* | Completely redefine the board (see below) |
+
+#### Redefining the board with `groupsJson`
+
+Paste a JSON array into the **Groups (JSON)** property to change the columns, icons, colors, cards, and fields entirely. Invalid JSON safely falls back to the default board.
+
+```json
+[
+  {
+    "key": "co-investors",
+    "label": "Co-Investors",
+    "icon": "standard:partners",
+    "color": "#0176d3",
+    "showNew": true,
+    "collapsed": false,
+    "cards": [
+      {
+        "id": "FDP-0013",
+        "title": "FDP-0013",
+        "fields": [
+          { "label": "Role", "value": "Lead Co-Investor" },
+          { "label": "Commitment", "value": "$8.0M" }
+        ]
+      }
+    ]
+  }
+]
+```
+
+**Schema:**
+
+| Key | Level | Required | Notes |
+|---|---|---|---|
+| `key` | group | recommended | Unique id; auto-generated if omitted |
+| `label` | group | yes | Column header text |
+| `icon` | group | no | SLDS icon name (default `standard:default`) |
+| `color` | group | no | Header-icon + card-border color (defaults to the accent color) |
+| `showNew` | group | no | Shows a **New** button on the header |
+| `collapsed` | group | no | Start this group collapsed |
+| `cards` | group | no | Array of cards |
+| `id` / `title` | card | recommended | Card identifier / heading |
+| `fields` | card | no | Array of `{ label, value }` shown when the toggle is on |
+
+> **Going live:** to drive the board from real records, replace the `DEFAULT_GROUPS`/`groupsJson` source with an `@wire` to an Apex method that returns the same shape (e.g. from a `Deal_Relationship__c` junction). The **New** button already fires a `newrecord` custom event with the group key for a parent/flow to handle.
 
 ---
 
