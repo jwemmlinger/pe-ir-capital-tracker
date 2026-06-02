@@ -1,0 +1,268 @@
+<!--
+  irCapitalTracker.html
+  Double-tabbed IR workspace:
+    Tab 1 - Capital Performance & Ledger (gauge + KPIs + multiples + ledger)
+    Tab 2 - Fundraising Pipeline (kanban + datatable + activation)
+  Built with native Lightning base components + a custom SVG radial gauge,
+  styled with SLDS grid/utility classes.
+-->
+<template>
+    <lightning-card title="Investor Relations — Capital & Pipeline" icon-name="custom:custom63">
+
+        <!-- Global spinner shown while the activation DML is in flight -->
+        <template lwc:if={isWorking}>
+            <lightning-spinner alternative-text="Working..." size="medium"></lightning-spinner>
+        </template>
+
+        <lightning-tabset variant="scoped" class="slds-p-horizontal_small">
+
+            <!-- ===========================================================
+                 TAB 1 — CAPITAL PERFORMANCE & LEDGER
+                 =========================================================== -->
+            <lightning-tab label="Capital Performance & Ledger" value="capital">
+
+                <!-- Fund Filter -->
+                <div class="slds-grid slds-grid_align-end slds-m-bottom_small">
+                    <div class="slds-size_1-of-3">
+                        <lightning-combobox
+                            name="fundFilter"
+                            label="Fund Commitment Filter"
+                            value={selectedFundId}
+                            options={fundOptions}
+                            onchange={handleFundChange}>
+                        </lightning-combobox>
+                    </div>
+                </div>
+
+                <!-- Gauge + KPI grid -->
+                <div class="slds-grid slds-gutters slds-wrap">
+
+                    <!-- Drawdown Gauge (radial SVG) -->
+                    <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-3">
+                        <article class="slds-card slds-card_boundary slds-p-around_medium slds-text-align_center">
+                            <h3 class="slds-text-heading_small slds-m-bottom_small">Capital Drawdown</h3>
+                            <svg viewBox="0 0 120 120" class="gauge-svg" aria-label="Called capital percentage gauge">
+                                <!-- Background ring -->
+                                <circle
+                                    cx="60" cy="60" r={gaugeRadius}
+                                    class="gauge-track"
+                                    fill="none" stroke-width="12">
+                                </circle>
+                                <!-- Progress ring (rotated -90deg so it starts at 12 o'clock) -->
+                                <circle
+                                    cx="60" cy="60" r={gaugeRadius}
+                                    class="gauge-progress"
+                                    fill="none" stroke-width="12"
+                                    stroke-linecap="round"
+                                    stroke-dasharray={gaugeCircumference}
+                                    stroke-dashoffset={gaugeDashOffset}
+                                    transform="rotate(-90 60 60)">
+                                </circle>
+                                <!-- Center percent label -->
+                                <text x="60" y="60" text-anchor="middle" dy="0.1em" class="gauge-label">
+                                    {gaugePercentLabel}
+                                </text>
+                                <text x="60" y="78" text-anchor="middle" class="gauge-sublabel">
+                                    Called
+                                </text>
+                            </svg>
+                        </article>
+                    </div>
+
+                    <!-- KPI Cards -->
+                    <div class="slds-col slds-size_1-of-1 slds-medium-size_2-of-3">
+                        <div class="slds-grid slds-gutters slds-wrap">
+
+                            <div class="slds-col slds-size_1-of-2 slds-p-bottom_small">
+                                <article class="slds-box slds-box_x-small kpi-card">
+                                    <p class="slds-text-title kpi-title">Capital Committed</p>
+                                    <p class="slds-text-heading_medium">
+                                        <lightning-formatted-number
+                                            value={committedCapital}
+                                            format-style="currency"
+                                            currency-code="USD"
+                                            maximum-fraction-digits="0">
+                                        </lightning-formatted-number>
+                                    </p>
+                                </article>
+                            </div>
+
+                            <div class="slds-col slds-size_1-of-2 slds-p-bottom_small">
+                                <article class="slds-box slds-box_x-small kpi-card">
+                                    <p class="slds-text-title kpi-title">Capital Called</p>
+                                    <p class="slds-text-heading_medium">
+                                        <lightning-formatted-number
+                                            value={calledCapital}
+                                            format-style="currency"
+                                            currency-code="USD"
+                                            maximum-fraction-digits="0">
+                                        </lightning-formatted-number>
+                                    </p>
+                                    <p class="slds-text-body_small slds-text-color_weak">{calledPercentLabel}</p>
+                                </article>
+                            </div>
+
+                            <div class="slds-col slds-size_1-of-2 slds-p-bottom_small">
+                                <article class="slds-box slds-box_x-small kpi-card">
+                                    <p class="slds-text-title kpi-title">Remaining Uncalled</p>
+                                    <p class="slds-text-heading_medium">
+                                        <lightning-formatted-number
+                                            value={uncalledCapital}
+                                            format-style="currency"
+                                            currency-code="USD"
+                                            maximum-fraction-digits="0">
+                                        </lightning-formatted-number>
+                                    </p>
+                                </article>
+                            </div>
+
+                            <div class="slds-col slds-size_1-of-2 slds-p-bottom_small">
+                                <article class="slds-box slds-box_x-small kpi-card">
+                                    <p class="slds-text-title kpi-title">Distributions</p>
+                                    <p class="slds-text-heading_medium">
+                                        <lightning-formatted-number
+                                            value={distributionsTotal}
+                                            format-style="currency"
+                                            currency-code="USD"
+                                            maximum-fraction-digits="0">
+                                        </lightning-formatted-number>
+                                    </p>
+                                </article>
+                            </div>
+
+                        </div>
+                    </div>
+                </div>
+
+                <!-- PE Performance Multiples -->
+                <article class="slds-box slds-box_x-small slds-m-top_small">
+                    <h3 class="slds-text-heading_small slds-m-bottom_x-small">Performance Multiples</h3>
+                    <div class="slds-grid slds-gutters slds-wrap slds-text-align_center">
+                        <div class="slds-col slds-size_1-of-3">
+                            <p class="slds-text-title kpi-title">TVPI</p>
+                            <p class="slds-text-heading_medium multiple-value">{tvpiLabel}</p>
+                            <p class="slds-text-body_small slds-text-color_weak">Total Value / Paid-In</p>
+                        </div>
+                        <div class="slds-col slds-size_1-of-3">
+                            <p class="slds-text-title kpi-title">DPI</p>
+                            <p class="slds-text-heading_medium multiple-value">{dpiLabel}</p>
+                            <p class="slds-text-body_small slds-text-color_weak">Distributions / Paid-In</p>
+                        </div>
+                        <div class="slds-col slds-size_1-of-3">
+                            <p class="slds-text-title kpi-title">RVPI</p>
+                            <p class="slds-text-heading_medium multiple-value">{rvpiLabel}</p>
+                            <p class="slds-text-body_small slds-text-color_weak">Residual Value / Paid-In</p>
+                        </div>
+                    </div>
+                </article>
+
+                <!-- Ledger Transactions -->
+                <article class="slds-box slds-box_x-small slds-m-top_small">
+                    <h3 class="slds-text-heading_small slds-m-bottom_x-small">Capital Ledger</h3>
+                    <template lwc:if={hasTransactions}>
+                        <lightning-datatable
+                            key-field="id"
+                            data={scopedTransactions}
+                            columns={txnColumns}
+                            hide-checkbox-column
+                            resize-column-disabled>
+                        </lightning-datatable>
+                    </template>
+                    <template lwc:else>
+                        <p class="slds-text-body_regular slds-text-color_weak slds-p-around_small">
+                            No ledger transactions for the selected scope.
+                        </p>
+                    </template>
+                </article>
+
+            </lightning-tab>
+
+            <!-- ===========================================================
+                 TAB 2 — FUNDRAISING PIPELINE
+                 =========================================================== -->
+            <lightning-tab label="Fundraising Pipeline" value="pipeline">
+
+                <!-- Kanban-style stage board -->
+                <div class="slds-grid slds-gutters slds-wrap slds-m-bottom_medium">
+
+                    <!-- Column 1: Prospecting / Diligence -->
+                    <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-3">
+                        <div class="kanban-col">
+                            <header class="kanban-header">Prospecting / Diligence</header>
+                            <template for:each={prospectingColumn} for:item="opp">
+                                <article key={opp.id} class="slds-box slds-box_x-small kanban-card">
+                                    <p class="slds-text-body_regular slds-truncate slds-text-title_bold">{opp.name}</p>
+                                    <p class="slds-text-body_small slds-text-color_weak slds-truncate">{opp.fundOffering}</p>
+                                    <p class="slds-text-body_small">
+                                        <lightning-formatted-number value={opp.amount} format-style="currency" currency-code="USD" maximum-fraction-digits="0"></lightning-formatted-number>
+                                    </p>
+                                </article>
+                            </template>
+                        </div>
+                    </div>
+
+                    <!-- Column 2: Legal / Subscription Document Review -->
+                    <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-3">
+                        <div class="kanban-col">
+                            <header class="kanban-header">Legal / Subscription Review</header>
+                            <template for:each={legalColumn} for:item="opp">
+                                <article key={opp.id} class="slds-box slds-box_x-small kanban-card">
+                                    <p class="slds-text-body_regular slds-truncate slds-text-title_bold">{opp.name}</p>
+                                    <p class="slds-text-body_small slds-text-color_weak slds-truncate">{opp.fundOffering}</p>
+                                    <p class="slds-text-body_small">
+                                        <lightning-formatted-number value={opp.amount} format-style="currency" currency-code="USD" maximum-fraction-digits="0"></lightning-formatted-number>
+                                    </p>
+                                    <!-- Activation trigger: Closed Won + create commitment -->
+                                    <lightning-button
+                                        class="slds-m-top_x-small"
+                                        variant="brand"
+                                        label="Activate Commitment"
+                                        data-id={opp.id}
+                                        onclick={handleActivateClick}>
+                                    </lightning-button>
+                                </article>
+                            </template>
+                        </div>
+                    </div>
+
+                    <!-- Column 3: Closed Won (Activated Commitments) -->
+                    <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-3">
+                        <div class="kanban-col kanban-col_won">
+                            <header class="kanban-header">Closed Won — Activated</header>
+                            <template for:each={closedWonColumn} for:item="opp">
+                                <article key={opp.id} class="slds-box slds-box_x-small kanban-card">
+                                    <p class="slds-text-body_regular slds-truncate slds-text-title_bold">{opp.name}</p>
+                                    <p class="slds-text-body_small slds-text-color_weak slds-truncate">{opp.fundOffering}</p>
+                                    <p class="slds-text-body_small">
+                                        <lightning-formatted-number value={opp.amount} format-style="currency" currency-code="USD" maximum-fraction-digits="0"></lightning-formatted-number>
+                                    </p>
+                                    <lightning-icon icon-name="utility:check" size="x-small" variant="success" class="slds-m-top_x-small"></lightning-icon>
+                                </article>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pipeline Datatable -->
+                <article class="slds-box slds-box_x-small">
+                    <h3 class="slds-text-heading_small slds-m-bottom_x-small">All Fundraising Opportunities</h3>
+                    <template lwc:if={hasPipeline}>
+                        <lightning-datatable
+                            key-field="id"
+                            data={pipeline}
+                            columns={pipelineColumns}
+                            hide-checkbox-column
+                            onrowaction={handleRowAction}>
+                        </lightning-datatable>
+                    </template>
+                    <template lwc:else>
+                        <p class="slds-text-body_regular slds-text-color_weak slds-p-around_small">
+                            No fundraising opportunities found for this LP.
+                        </p>
+                    </template>
+                </article>
+
+            </lightning-tab>
+        </lightning-tabset>
+    </lightning-card>
+</template>

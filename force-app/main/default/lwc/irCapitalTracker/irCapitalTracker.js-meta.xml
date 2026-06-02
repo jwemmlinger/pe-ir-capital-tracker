@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<LightningComponentBundle xmlns="http://soap.sforce.com/2006/04/metadata">
+    <apiVersion>62.0</apiVersion>
+    <isExposed>true</isExposed>
+    <masterLabel>IR Capital &amp; Pipeline Tracker</masterLabel>
+    <description>PE Investor Relations capital commitments, drawdown gauge, performance multiples, ledger, and fundraising pipeline for an institutional LP Account.</description>
+    <targets>
+        <!-- Exposed only on Account Record Pages -->
+        <target>lightning__RecordPage</target>
+    </targets>
+    <targetConfigs>
+        <targetConfig targets="lightning__RecordPage">
+            <!-- Restrict the component to Account record pages -->
+            <objects>
+                <object>Account</object>
+            </objects>
+        </targetConfig>
+    </targetConfigs>
+</LightningComponentBundle>

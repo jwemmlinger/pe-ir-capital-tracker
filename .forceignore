@@ -1,0 +1,3 @@
+# Don't deploy local helper scripts
+**/seed.apex
+README.md

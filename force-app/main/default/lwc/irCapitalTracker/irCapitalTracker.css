@@ -1,0 +1,64 @@
+/* irCapitalTracker.css — radial gauge, KPI cards, and Kanban styling */
+
+/* ---- Radial drawdown gauge ---- */
+.gauge-svg {
+    width: 160px;
+    height: 160px;
+}
+.gauge-track {
+    stroke: #e5e5e5; /* uncalled portion */
+}
+.gauge-progress {
+    stroke: #1b96ff; /* SLDS brand blue — called portion */
+    transition: stroke-dashoffset 0.6s ease;
+}
+.gauge-label {
+    font-size: 1.6rem;
+    font-weight: 700;
+    fill: #181818;
+}
+.gauge-sublabel {
+    font-size: 0.75rem;
+    fill: #706e6b;
+}
+
+/* ---- KPI cards ---- */
+.kpi-card {
+    height: 100%;
+    border-left: 3px solid #1b96ff;
+}
+.kpi-title {
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #706e6b;
+}
+.multiple-value {
+    color: #1b96ff;
+    font-weight: 700;
+}
+
+/* ---- Kanban board ---- */
+.kanban-col {
+    background: #f3f3f3;
+    border-radius: 0.25rem;
+    padding: 0.5rem;
+    min-height: 8rem;
+    height: 100%;
+}
+.kanban-col_won {
+    background: #ebf7e6; /* subtle green for activated commitments */
+}
+.kanban-header {
+    font-weight: 700;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #3e3e3c;
+    padding: 0.25rem 0.25rem 0.5rem;
+    border-bottom: 2px solid #d8d8d8;
+    margin-bottom: 0.5rem;
+}
+.kanban-card {
+    background: #ffffff;
+    margin-bottom: 0.5rem;
+}
