@@ -1,11 +1,15 @@
 <!--
   dealRelationshipBoard.html
   ARC-style relationship graph: toolbar + central deal node + connector lines
-  fanning out to role columns, each with a header and participant card(s).
-  Fully customizable via App Builder properties + an optional groupsJson.
+  fanning out to role columns with editable participant cards.
+  Click "Edit" to modify in place, "Save" to persist to the host record.
 -->
 <template>
     <div class="arc-board">
+
+        <template lwc:if={isSaving}>
+            <lightning-spinner alternative-text="Saving..." size="small"></lightning-spinner>
+        </template>
 
         <!-- ===== Toolbar ===== -->
         <template lwc:if={showToolbar}>
@@ -26,6 +30,24 @@
                 </div>
 
                 <div class="arc-toolbar__right">
+                    <!-- Edit / Save controls -->
+                    <lightning-button
+                        label={editButtonLabel}
+                        icon-name="utility:edit"
+                        variant="neutral"
+                        onclick={toggleEdit}
+                        class="slds-m-right_xx-small">
+                    </lightning-button>
+                    <template lwc:if={isEditing}>
+                        <lightning-button
+                            label="Save"
+                            variant="brand"
+                            icon-name="utility:save"
+                            onclick={handleSave}
+                            class="slds-m-right_small">
+                        </lightning-button>
+                    </template>
+
                     <lightning-button-icon icon-name="utility:dash" variant="border-filled" alternative-text="Zoom out" class="arc-tool-btn"></lightning-button-icon>
                     <lightning-button-icon icon-name="utility:steps" variant="border-filled" alternative-text="Fit" class="arc-tool-btn"></lightning-button-icon>
                     <lightning-button-icon icon-name="utility:layout" variant="brand" alternative-text="Layout" class="arc-tool-btn"></lightning-button-icon>
@@ -41,7 +63,17 @@
             <div class="arc-deal-wrap">
                 <div class="arc-deal-node">
                     <lightning-icon icon-name={dealIcon} size="x-small" class="arc-deal-icon" style={dealIconStyle}></lightning-icon>
-                    <span class="arc-deal-name slds-truncate" title={dealName}>{dealName}</span>
+                    <template lwc:if={isEditing}>
+                        <input
+                            type="text"
+                            class="arc-inline-input arc-deal-input"
+                            value={dealNameDraft}
+                            onchange={handleDealNameChange}
+                            placeholder="Deal label" />
+                    </template>
+                    <template lwc:else>
+                        <span class="arc-deal-name slds-truncate" title={dealName}>{dealName}</span>
+                    </template>
                 </div>
             </div>
 
@@ -65,30 +97,113 @@
                             <span class="arc-icon" style={group.iconStyle}>
                                 <lightning-icon icon-name={group.icon} size="xx-small" variant="inverse"></lightning-icon>
                             </span>
-                            <span class="arc-group-label">{group.label}</span>
+
+                            <template lwc:if={isEditing}>
+                                <input
+                                    type="text"
+                                    class="arc-inline-input arc-group-input"
+                                    value={group.label}
+                                    data-group-key={group.key}
+                                    onchange={handleGroupLabelChange}
+                                    placeholder="Group" />
+                            </template>
+                            <template lwc:else>
+                                <span class="arc-group-label">{group.label}</span>
+                            </template>
                             <span class="arc-group-count">{group.count}</span>
 
+                            <!-- New (adds a card while editing; fires event otherwise) -->
                             <template lwc:if={group.showNew}>
                                 <button class="arc-new-btn" data-key={group.key} onclick={handleNew}>New</button>
+                            </template>
+                            <template lwc:if={isEditing}>
+                                <template lwc:if={group.showNew}></template>
+                                <template lwc:else>
+                                    <button class="arc-new-btn" data-key={group.key} onclick={handleNew} title="Add card">+ Add</button>
+                                </template>
                             </template>
                         </div>
 
                         <!-- Cards -->
-                        <template lwc:if={group.collapsed}></template>
+                        <template lwc:if={group.isCollapsed}></template>
                         <template lwc:else>
                             <template for:each={group.cards} for:item="card">
                                 <div key={card.id} class="arc-card" style={card.cardStyle}>
                                     <div class="arc-card__header">
-                                        <span class="arc-card__title slds-truncate" title={card.title}>{card.title}</span>
-                                        <lightning-icon icon-name="utility:hierarchy" size="xx-small" class="arc-card__hierarchy"></lightning-icon>
+                                        <template lwc:if={isEditing}>
+                                            <input
+                                                type="text"
+                                                class="arc-inline-input arc-card-title-input"
+                                                value={card.title}
+                                                data-group-key={group.key}
+                                                data-card-id={card.id}
+                                                onchange={handleCardTitleChange}
+                                                placeholder="Title" />
+                                            <button
+                                                class="arc-icon-btn"
+                                                data-group-key={group.key}
+                                                data-card-id={card.id}
+                                                onclick={handleRemoveCard}
+                                                title="Remove card">
+                                                <lightning-icon icon-name="utility:delete" size="xx-small" variant="error"></lightning-icon>
+                                            </button>
+                                        </template>
+                                        <template lwc:else>
+                                            <span class="arc-card__title slds-truncate" title={card.title}>{card.title}</span>
+                                            <lightning-icon icon-name="utility:hierarchy" size="xx-small" class="arc-card__hierarchy"></lightning-icon>
+                                        </template>
                                     </div>
+
                                     <template lwc:if={card.visibleFields.length}>
                                         <div class="arc-card__body">
                                             <template for:each={card.visibleFields} for:item="field">
                                                 <div key={field.key} class="arc-field">
-                                                    <span class="arc-field__label">{field.label}</span>
-                                                    <span class="arc-field__value slds-truncate" title={field.value}>{field.value}</span>
+                                                    <template lwc:if={isEditing}>
+                                                        <div class="arc-field-edit">
+                                                            <input
+                                                                type="text"
+                                                                class="arc-inline-input arc-field-label-input"
+                                                                value={field.label}
+                                                                data-group-key={group.key}
+                                                                data-card-id={card.id}
+                                                                data-field-key={field.key}
+                                                                onchange={handleFieldLabelChange}
+                                                                placeholder="Label" />
+                                                            <input
+                                                                type="text"
+                                                                class="arc-inline-input arc-field-value-input"
+                                                                value={field.value}
+                                                                data-group-key={group.key}
+                                                                data-card-id={card.id}
+                                                                data-field-key={field.key}
+                                                                onchange={handleFieldValueChange}
+                                                                placeholder="Value" />
+                                                            <button
+                                                                class="arc-icon-btn"
+                                                                data-group-key={group.key}
+                                                                data-card-id={card.id}
+                                                                data-field-key={field.key}
+                                                                onclick={handleRemoveField}
+                                                                title="Remove field">
+                                                                <lightning-icon icon-name="utility:close" size="xx-small"></lightning-icon>
+                                                            </button>
+                                                        </div>
+                                                    </template>
+                                                    <template lwc:else>
+                                                        <span class="arc-field__label">{field.label}</span>
+                                                        <span class="arc-field__value slds-truncate" title={field.value}>{field.value}</span>
+                                                    </template>
                                                 </div>
+                                            </template>
+
+                                            <template lwc:if={isEditing}>
+                                                <button
+                                                    class="arc-add-field-btn"
+                                                    data-group-key={group.key}
+                                                    data-card-id={card.id}
+                                                    onclick={handleAddField}>
+                                                    + Add field
+                                                </button>
                                             </template>
                                         </div>
                                     </template>

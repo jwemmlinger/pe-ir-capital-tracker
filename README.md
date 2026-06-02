@@ -114,6 +114,7 @@ All performance multiples are expressed relative to **paid-in (called) capital**
 ```
 
 ### Features
+- **Click-to-edit** — an **Edit** button flips the board into inline edit mode: type directly into the deal label, group names, card titles, and field labels/values; **add/remove cards and fields**; then **Save** to persist. Edits are stored as JSON on a `Deal_Relationship_Board__c` record keyed to the host record, so they survive refresh.
 - **Toolbar** — a functional *"Show fields on cards"* toggle that expands/collapses the field section on every card, plus a zoom/fit/layout/refresh button cluster.
 - **Central deal node** — a rounded pill with an icon and the deal label (configurable via the `dealName` property in App Builder).
 - **Five relationship groups** — Co-Investors, Deal Team, Legal Counsel, Target PortCo, Intermediaries. Each group header has a colored role icon, label, live **count badge**, a **collapse chevron**, and (on Co-Investors) a **New** action button.
@@ -121,9 +122,25 @@ All performance multiples are expressed relative to **paid-in (called) capital**
 - **Connector graph** — pure CSS/HTML, no external charting library or static resources.
 
 ### Design notes
-- **Data-driven:** the entire board is rendered from the `groups` array in `dealRelationshipBoard.js`. Each entry defines a role (`label`, `icon`, `iconClass`), its `cards`, and per-card `fields`. Swap this array for an `@wire` to Apex to make it live.
-- **No Apex required:** the component is self-contained and deploys on its own — useful as a visual/demo board or a starting point for a wired relationship object (e.g. a `Deal_Relationship__c` junction).
-- **Exposed** to `lightning__RecordPage`, `lightning__AppPage`, and `lightning__HomePage`.
+- **Data-driven:** the entire board is rendered from the `groups` array in `dealRelationshipBoard.js`. Each entry defines a role (`label`, `icon`, `color`), its `cards`, and per-card `fields`.
+- **Persistence:** inline edits are saved by `DealRelationshipBoardController.saveBoardConfig` to a `Deal_Relationship_Board__c` record (one per host record, via the unique external-id `Host_Record_Id__c`), and reloaded by `getBoardConfig` on the next visit. The seed order is: **saved config → `groupsJson` property → built-in default board**.
+- **Exposed** to `lightning__RecordPage`, `lightning__AppPage`, and `lightning__HomePage`. Editing/saving requires the board to be on a **record page** (it uses `recordId` as the save key); on app/home pages it stays read-only.
+
+### Editing the board
+
+1. Place the board on a **record page** (so it has a `recordId` to save against) and **Activate**.
+2. Click **Edit** in the toolbar. The board becomes editable in place:
+   - Edit the **deal label**, **group names**, **card titles**, and each field's **label / value**.
+   - **+ Add** (group header) adds a card; the trash icon removes one.
+   - **+ Add field** adds a field to a card; the ✕ removes one.
+3. Click **Save** to persist, or **Cancel** to discard and reload the last saved state.
+
+### Backing storage (`Deal_Relationship_Board__c`)
+
+| Field | Type | Purpose |
+|---|---|---|
+| `Host_Record_Id__c` | Text(18), External Id, Unique | The host record's Id — one board per record |
+| `Config_JSON__c` | Long Text Area (128 KB) | The serialized board config (deal node + groups/cards/fields) |
 
 ---
 
@@ -139,7 +156,9 @@ pe-ir-capital-tracker/
 └── force-app/main/default/
     ├── classes/
     │   ├── IRCapitalTrackerController.cls
-    │   └── IRCapitalTrackerController.cls-meta.xml
+    │   ├── IRCapitalTrackerController.cls-meta.xml
+    │   ├── DealRelationshipBoardController.cls      # load/save board config
+    │   └── DealRelationshipBoardController.cls-meta.xml
     ├── lwc/
     │   ├── irCapitalTracker/         # Component 1 — capital tracker
     │   │   ├── irCapitalTracker.html
@@ -151,10 +170,12 @@ pe-ir-capital-tracker/
     │       ├── dealRelationshipBoard.js
     │       ├── dealRelationshipBoard.css
     │       └── dealRelationshipBoard.js-meta.xml
-    ├── objects/                      # Custom field metadata
+    ├── objects/                      # Custom object + field metadata
     │   ├── FinServ__FinancialAccount__c/fields/
     │   ├── FinServ__FinancialAccountTransaction__c/fields/
-    │   └── Opportunity/fields/
+    │   ├── Opportunity/fields/
+    │   └── Deal_Relationship_Board__c/   # stores saved board configs (JSON)
+    │       └── fields/
     └── profiles/
         └── Admin.profile-meta.xml    # FLS for the System Administrator profile
 ```
@@ -273,10 +294,19 @@ All SOQL uses `WITH SECURITY_ENFORCED`; numeric values are null-coalesced to `0`
 - Toast notifications via `ShowToastEvent`.
 
 ### `dealRelationshipBoard` (LWC)
-- Self-contained (no Apex). Renders entirely from the `groups` array, seeded by `DEFAULT_GROUPS` or the `groupsJson` property.
+- Renders from the `groups` array, seeded by a saved config, the `groupsJson` property, or `DEFAULT_GROUPS` (in that order).
+- **Inline edit + save** via `DealRelationshipBoardController` — see [Editing the board](#editing-the-board).
 - Eight App Builder properties make the deal label, icon, accent color, layout, toolbar, and toggle fully configurable without code (see [Customizing the Deal Relationship Board](#customizing-the-deal-relationship-board)).
-- Collapsible groups, a field-visibility toggle, and a `newrecord` custom event on the **New** button.
+- Collapsible groups, a field-visibility toggle, and a `newrecord` custom event on the **New** button (when not editing).
 - Connector graph is pure CSS/HTML — no charting library or static resources.
+
+### `DealRelationshipBoardController.cls`
+`with sharing` Apex controller for board persistence.
+
+| Method | Cacheable | Purpose |
+|---|---|---|
+| `getBoardConfig(hostRecordId)` | ✅ | Returns the saved `Config_JSON__c` for the host record (or null) |
+| `saveBoardConfig(hostRecordId, configJson)` | ❌ (DML) | Validates the JSON and upserts the board config on the unique `Host_Record_Id__c` external id |
 
 ---
 

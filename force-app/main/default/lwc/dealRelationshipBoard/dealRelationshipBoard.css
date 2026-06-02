@@ -213,3 +213,67 @@
 .arc-field__value {
     color: #181818;
 }
+
+/* ===== Inline edit mode ===== */
+.arc-inline-input {
+    border: 1px solid #c9c7c5;
+    border-radius: 0.25rem;
+    padding: 0.125rem 0.375rem;
+    font-size: 0.8125rem;
+    color: #181818;
+    background: #fff;
+    width: 100%;
+    box-sizing: border-box;
+}
+.arc-inline-input:focus {
+    outline: none;
+    border-color: #1b96ff;
+    box-shadow: 0 0 0 1px #1b96ff;
+}
+.arc-deal-input {
+    min-width: 220px;
+    font-weight: 600;
+    color: #0b5cab;
+}
+.arc-group-input {
+    font-weight: 600;
+    max-width: 120px;
+}
+.arc-card-title-input {
+    font-weight: 600;
+    color: #0b5cab;
+}
+.arc-field-edit {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    width: 100%;
+}
+.arc-field-label-input {
+    flex: 0 0 38%;
+}
+.arc-field-value-input {
+    flex: 1 1 auto;
+}
+.arc-icon-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0.125rem;
+    display: inline-flex;
+    align-items: center;
+}
+.arc-add-field-btn {
+    background: none;
+    border: 1px dashed #c9c7c5;
+    border-radius: 0.25rem;
+    color: #0176d3;
+    cursor: pointer;
+    font-size: 0.6875rem;
+    padding: 0.125rem 0.375rem;
+    margin-top: 0.25rem;
+    width: 100%;
+}
+.arc-add-field-btn:hover {
+    background: #f3f9fe;
+}
