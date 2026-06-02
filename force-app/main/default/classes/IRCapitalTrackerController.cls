@@ -60,13 +60,48 @@ public with sharing class IRCapitalTrackerController {
     public class OpportunityDTO {
         @AuraEnabled public Id      id;
         @AuraEnabled public String  name;
-        @AuraEnabled public String  fundOffering; // Fund_Offering_Name__c
+        @AuraEnabled public String  fundOffering;  // Fund_Offering_Name__c (free-text label)
+        @AuraEnabled public Id      fundId;        // FINS_Private_Equity_Fund__c (real lookup)
+        @AuraEnabled public String  fundName;      // FINS_Private_Equity_Fund__r.Name
         @AuraEnabled public Decimal amount;
         @AuraEnabled public String  stageName;
         @AuraEnabled public Decimal probability;
         @AuraEnabled public Date    closeDate;
         @AuraEnabled public Boolean isClosed;
         @AuraEnabled public Boolean isWon;
+    }
+
+    /**
+     * A PE fund vehicle (custom Fund__c object) sponsored by / linked to the LP
+     * Account. Surfaces the firm-level fund structure alongside the LP's own
+     * commitments so IR can see committed vs. invested, fundraising progress,
+     * vintage, terms, and investor counts at a glance.
+     */
+    public class FundDTO {
+        @AuraEnabled public Id      id;
+        @AuraEnabled public String  name;
+        @AuraEnabled public String  fundType;          // Fund_Type__c
+        @AuraEnabled public String  status;            // Status__c (lifecycle)
+        @AuraEnabled public String  fundraisingStatus; // Fundraising_Status__c
+        @AuraEnabled public String  vintage;           // FINS_Vintage__c
+        @AuraEnabled public Decimal committed;         // Committed_Capital__c
+        @AuraEnabled public Decimal invested;          // Invested__c
+        @AuraEnabled public Decimal targetAmount;      // Fund_Target_Amount__c
+        @AuraEnabled public Decimal pipeline;          // Fundraising_Pipeline__c
+        @AuraEnabled public Decimal remainingToGoal;   // Remaining_to_Goal__c
+        @AuraEnabled public Decimal numberOfInvestors; // Number_of_Investors__c
+        @AuraEnabled public Decimal dealsInvested;     // of_Deals_Invested__c
+        @AuraEnabled public Decimal managementFee;     // FINS_Private_Equity_Management_Fee__c (percent)
+        @AuraEnabled public Decimal term;              // FINS_Private_Equity_Term__c (years)
+        @AuraEnabled public String  info;              // Fund_Info__c
+        // Convenience: % of target raised, computed server-side for the bar.
+        @AuraEnabled public Decimal raisedPct;
+        // Live rollups from related Opportunities (linked via the
+        // FINS_Private_Equity_Fund__c lookup) so each fund card shows its own
+        // active fundraising activity.
+        @AuraEnabled public Integer relatedOppCount  = 0;
+        @AuraEnabled public Decimal relatedOppAmount = 0;
+        @AuraEnabled public List<OpportunityDTO> relatedOpps = new List<OpportunityDTO>();
     }
 
     /**
@@ -190,6 +225,8 @@ public with sharing class IRCapitalTrackerController {
                     SELECT Id,
                            Name,
                            Fund_Offering_Name__c,
+                           FINS_Private_Equity_Fund__c,
+                           FINS_Private_Equity_Fund__r.Name,
                            Amount,
                            StageName,
                            Probability,
@@ -206,6 +243,8 @@ public with sharing class IRCapitalTrackerController {
                 dto.id             = opp.Id;
                 dto.name           = opp.Name;
                 dto.fundOffering   = opp.Fund_Offering_Name__c;
+                dto.fundId         = opp.FINS_Private_Equity_Fund__c;
+                dto.fundName       = opp.FINS_Private_Equity_Fund__r.Name;
                 dto.amount         = nz(opp.Amount);
                 dto.stageName      = opp.StageName;
                 dto.probability    = nz(opp.Probability);
@@ -218,6 +257,109 @@ public with sharing class IRCapitalTrackerController {
 
         } catch (System.QueryException qe) {
             throw new AuraHandledException('Unable to query the fundraising pipeline: ' + qe.getMessage());
+        }
+    }
+
+    /**
+     * Returns the PE fund vehicles (custom Fund__c) linked to the LP Account.
+     * Powers the "Fund Vehicles" tab: a card grid of committed-vs-invested
+     * capital, fundraising progress, vintage, terms, and investor counts.
+     *
+     * @param accountId  The Institutional LP Account Id.
+     */
+    @AuraEnabled(cacheable=true)
+    public static List<FundDTO> getFunds(Id accountId) {
+        if (accountId == null) {
+            throw new AuraHandledException('An Account Id is required to load funds.');
+        }
+
+        List<FundDTO>     results   = new List<FundDTO>();
+        Map<Id, FundDTO>  fundById  = new Map<Id, FundDTO>();
+
+        try {
+            for (Fund__c f : [
+                    SELECT Id, Name, Fund_Type__c, Status__c, Fundraising_Status__c,
+                           FINS_Vintage__c, Committed_Capital__c, Invested__c,
+                           Fund_Target_Amount__c, Fundraising_Pipeline__c,
+                           Remaining_to_Goal__c, Number_of_Investors__c,
+                           of_Deals_Invested__c, FINS_Private_Equity_Management_Fee__c,
+                           FINS_Private_Equity_Term__c, Fund_Info__c
+                    FROM Fund__c
+                    WHERE Account__c = :accountId
+                    WITH SECURITY_ENFORCED
+                    ORDER BY FINS_Vintage__c DESC NULLS LAST, Name ASC
+                    LIMIT 200
+            ]) {
+                FundDTO dto           = new FundDTO();
+                dto.id                = f.Id;
+                dto.name              = f.Name;
+                dto.fundType          = f.Fund_Type__c;
+                dto.status            = f.Status__c;
+                dto.fundraisingStatus = f.Fundraising_Status__c;
+                dto.vintage           = f.FINS_Vintage__c;
+                dto.committed         = nz(f.Committed_Capital__c);
+                dto.invested          = nz(f.Invested__c);
+                dto.targetAmount      = nz(f.Fund_Target_Amount__c);
+                dto.pipeline          = nz(f.Fundraising_Pipeline__c);
+                dto.remainingToGoal   = nz(f.Remaining_to_Goal__c);
+                dto.numberOfInvestors = nz(f.Number_of_Investors__c);
+                dto.dealsInvested     = nz(f.of_Deals_Invested__c);
+                dto.managementFee     = nz(f.FINS_Private_Equity_Management_Fee__c);
+                dto.term              = nz(f.FINS_Private_Equity_Term__c);
+                dto.info              = f.Fund_Info__c;
+                // % of target raised (committed / target), clamped to 100.
+                Decimal pct = dto.targetAmount > 0
+                    ? (dto.committed / dto.targetAmount) * 100
+                    : 0;
+                dto.raisedPct = pct > 100 ? 100 : pct.setScale(1);
+                results.add(dto);
+                fundById.put(f.Id, dto);
+            }
+
+            // ---- Attach related Opportunities to each fund -------------------
+            // Opportunities are tied to a fund via FINS_Private_Equity_Fund__c.
+            // We roll up open-pipeline count/amount and carry the open deals so
+            // each fund card can show its live fundraising activity.
+            if (!fundById.isEmpty()) {
+                for (Opportunity opp : [
+                        SELECT Id, Name, Fund_Offering_Name__c,
+                               FINS_Private_Equity_Fund__c,
+                               Amount, StageName, Probability, CloseDate,
+                               IsClosed, IsWon
+                        FROM Opportunity
+                        WHERE FINS_Private_Equity_Fund__c IN :fundById.keySet()
+                        WITH SECURITY_ENFORCED
+                        ORDER BY CloseDate ASC
+                        LIMIT 500
+                ]) {
+                    FundDTO parent = fundById.get(opp.FINS_Private_Equity_Fund__c);
+                    if (parent == null) {
+                        continue;
+                    }
+                    OpportunityDTO o = new OpportunityDTO();
+                    o.id           = opp.Id;
+                    o.name         = opp.Name;
+                    o.fundOffering = opp.Fund_Offering_Name__c;
+                    o.fundId       = opp.FINS_Private_Equity_Fund__c;
+                    o.amount       = nz(opp.Amount);
+                    o.stageName    = opp.StageName;
+                    o.probability  = nz(opp.Probability);
+                    o.closeDate    = opp.CloseDate;
+                    o.isClosed     = opp.IsClosed;
+                    o.isWon        = opp.IsWon;
+                    parent.relatedOpps.add(o);
+                    // Roll up only still-open opportunities into the headline.
+                    if (!opp.IsClosed) {
+                        parent.relatedOppCount  += 1;
+                        parent.relatedOppAmount += o.amount;
+                    }
+                }
+            }
+
+            return results;
+
+        } catch (System.QueryException qe) {
+            throw new AuraHandledException('Unable to query fund vehicles: ' + qe.getMessage());
         }
     }
 

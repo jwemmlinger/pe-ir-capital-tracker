@@ -26,6 +26,7 @@ import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 
 import getCapitalSnapshot from '@salesforce/apex/IRCapitalTrackerController.getCapitalSnapshot';
 import getPipeline from '@salesforce/apex/IRCapitalTrackerController.getPipeline';
+import getFunds from '@salesforce/apex/IRCapitalTrackerController.getFunds';
 import finalizeOpportunitySubscription from '@salesforce/apex/IRCapitalTrackerController.finalizeOpportunitySubscription';
 
 // Sentinel value for the "All Combined Commitments" combobox option.
@@ -54,6 +55,7 @@ const TXN_COLUMNS = [
 // IR user activate (Close Won) an opportunity directly from the table.
 const PIPELINE_COLUMNS = [
     { label: 'Opportunity', fieldName: 'name', type: 'text' },
+    { label: 'Linked Fund', fieldName: 'fundName', type: 'text' },
     { label: 'Fund Offering', fieldName: 'fundOffering', type: 'text' },
     {
         label: 'Amount',
@@ -90,10 +92,12 @@ export default class IrCapitalTracker extends LightningElement {
     commitments = [];
     transactions = [];
     pipeline = [];
+    funds = [];
 
     // Cached wired results so refreshApex() can re-pull after a write.
     wiredSnapshot;
     wiredPipeline;
+    wiredFunds;
 
     // Static column configs exposed to the template.
     txnColumns = TXN_COLUMNS;
@@ -127,6 +131,53 @@ export default class IrCapitalTracker extends LightningElement {
             this.pipeline = [];
             this.showToast('Error loading pipeline', this.reduceError(error), 'error');
         }
+    }
+
+    @wire(getFunds, { accountId: '$recordId' })
+    wiredFundsData(result) {
+        this.wiredFunds = result;
+        const { data, error } = result;
+        if (data) {
+            // Decorate each fund with derived display helpers (badge theme,
+            // formatted % strings) so the template stays declarative.
+            this.funds = data.map((f) => ({
+                ...f,
+                raisedPctLabel: `${(f.raisedPct || 0).toFixed(0)}%`,
+                raisedBarStyle: `width: ${Math.min(f.raisedPct || 0, 100)}%;`,
+                statusBadgeClass: `slds-badge ${this.fundStatusTheme(f.status)}`,
+                isOpen: f.fundraisingStatus === 'Accepting New Capital',
+                hasRelatedOpps: (f.relatedOpps || []).length > 0,
+                // Decorate each related opp with a formatted probability label
+                // for the in-card list.
+                relatedOpps: (f.relatedOpps || []).map((o) => ({
+                    ...o,
+                    probabilityLabel: `${Math.round(o.probability || 0)}%`
+                }))
+            }));
+        } else if (error) {
+            this.funds = [];
+            this.showToast('Error loading fund vehicles', this.reduceError(error), 'error');
+        }
+    }
+
+    /** Map a fund lifecycle status to an SLDS badge theme class. */
+    fundStatusTheme(status) {
+        switch (status) {
+            case 'Investing':
+                return 'slds-theme_success';
+            case 'Fundraise in Progress':
+            case 'Inception':
+                return 'slds-theme_warning';
+            case 'Liquidating':
+            case 'Closed':
+                return 'slds-badge_inverse';
+            default:
+                return '';
+        }
+    }
+
+    get hasFunds() {
+        return this.funds.length > 0;
     }
 
     /* =====================================================================

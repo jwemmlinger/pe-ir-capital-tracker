@@ -263,6 +263,115 @@
                 </article>
 
             </lightning-tab>
+
+            <!-- ===========================================================
+                 TAB 3 — FUND VEHICLES (custom Fund__c linked to the Account)
+                 =========================================================== -->
+            <lightning-tab label="Fund Vehicles" value="funds">
+
+                <template lwc:if={hasFunds}>
+                    <div class="slds-grid slds-gutters slds-wrap">
+                        <template for:each={funds} for:item="fund">
+                            <div key={fund.id} class="slds-col slds-size_1-of-1 slds-medium-size_1-of-2 slds-p-bottom_small">
+                                <article class="slds-card slds-card_boundary fund-card">
+                                    <div class="slds-p-around_medium">
+
+                                        <!-- Header: name + lifecycle status badge -->
+                                        <div class="slds-grid slds-grid_align-spread slds-grid_vertical-align-center">
+                                            <h3 class="slds-text-heading_small slds-truncate" title={fund.name}>{fund.name}</h3>
+                                            <span class={fund.statusBadgeClass}>{fund.status}</span>
+                                        </div>
+                                        <p class="slds-text-body_small slds-text-color_weak slds-m-bottom_small">
+                                            {fund.fundType} &middot; Vintage {fund.vintage} &middot; {fund.fundraisingStatus}
+                                        </p>
+
+                                        <!-- Committed vs target progress bar -->
+                                        <div class="slds-grid slds-grid_align-spread slds-text-body_small">
+                                            <span class="slds-text-color_weak">Committed of Target</span>
+                                            <span class="slds-text-title_bold">{fund.raisedPctLabel}</span>
+                                        </div>
+                                        <div class="fund-bar-track slds-m-vertical_xx-small">
+                                            <div class="fund-bar-fill" style={fund.raisedBarStyle}></div>
+                                        </div>
+
+                                        <!-- Capital metrics grid -->
+                                        <div class="slds-grid slds-gutters slds-wrap slds-m-top_small">
+                                            <div class="slds-col slds-size_1-of-2 slds-p-bottom_x-small">
+                                                <p class="slds-text-title kpi-title">Committed</p>
+                                                <lightning-formatted-number value={fund.committed} format-style="currency" currency-code="USD" maximum-fraction-digits="0"></lightning-formatted-number>
+                                            </div>
+                                            <div class="slds-col slds-size_1-of-2 slds-p-bottom_x-small">
+                                                <p class="slds-text-title kpi-title">Invested</p>
+                                                <lightning-formatted-number value={fund.invested} format-style="currency" currency-code="USD" maximum-fraction-digits="0"></lightning-formatted-number>
+                                            </div>
+                                            <div class="slds-col slds-size_1-of-2 slds-p-bottom_x-small">
+                                                <p class="slds-text-title kpi-title">Target Size</p>
+                                                <lightning-formatted-number value={fund.targetAmount} format-style="currency" currency-code="USD" maximum-fraction-digits="0"></lightning-formatted-number>
+                                            </div>
+                                            <div class="slds-col slds-size_1-of-2 slds-p-bottom_x-small">
+                                                <p class="slds-text-title kpi-title">Open Pipeline</p>
+                                                <lightning-formatted-number value={fund.pipeline} format-style="currency" currency-code="USD" maximum-fraction-digits="0"></lightning-formatted-number>
+                                            </div>
+                                        </div>
+
+                                        <!-- Fund facts row -->
+                                        <div class="slds-grid slds-gutters slds-wrap slds-box slds-box_xx-small slds-m-top_x-small fund-facts">
+                                            <div class="slds-col slds-size_1-of-3 slds-text-align_center">
+                                                <p class="slds-text-title kpi-title">Investors</p>
+                                                <p class="slds-text-body_regular">{fund.numberOfInvestors}</p>
+                                            </div>
+                                            <div class="slds-col slds-size_1-of-3 slds-text-align_center">
+                                                <p class="slds-text-title kpi-title">Mgmt Fee</p>
+                                                <p class="slds-text-body_regular">
+                                                    <lightning-formatted-number value={fund.managementFee} maximum-fraction-digits="2"></lightning-formatted-number>%
+                                                </p>
+                                            </div>
+                                            <div class="slds-col slds-size_1-of-3 slds-text-align_center">
+                                                <p class="slds-text-title kpi-title">Term</p>
+                                                <p class="slds-text-body_regular">{fund.term} yrs</p>
+                                            </div>
+                                        </div>
+
+                                        <p class="slds-text-body_small slds-text-color_weak slds-m-top_x-small fund-info">{fund.info}</p>
+
+                                        <!-- Related fundraising opportunities (linked via the
+                                             FINS_Private_Equity_Fund__c lookup on Opportunity) -->
+                                        <template lwc:if={fund.hasRelatedOpps}>
+                                            <div class="slds-m-top_small">
+                                                <div class="slds-grid slds-grid_align-spread slds-grid_vertical-align-center slds-m-bottom_xx-small">
+                                                    <span class="slds-text-title kpi-title">Related Opportunities ({fund.relatedOppCount} open)</span>
+                                                    <span class="slds-text-body_small slds-text-title_bold">
+                                                        <lightning-formatted-number value={fund.relatedOppAmount} format-style="currency" currency-code="USD" maximum-fraction-digits="0"></lightning-formatted-number>
+                                                    </span>
+                                                </div>
+                                                <ul class="slds-has-dividers_bottom-space">
+                                                    <template for:each={fund.relatedOpps} for:item="opp">
+                                                        <li key={opp.id} class="slds-item fund-opp-row">
+                                                            <div class="slds-grid slds-grid_align-spread slds-grid_vertical-align-center">
+                                                                <span class="slds-truncate slds-text-body_small" title={opp.name}>{opp.name}</span>
+                                                                <span class="slds-text-body_small slds-text-color_weak slds-m-left_x-small slds-shrink-none">
+                                                                    <lightning-formatted-number value={opp.amount} format-style="currency" currency-code="USD" maximum-fraction-digits="0"></lightning-formatted-number>
+                                                                </span>
+                                                            </div>
+                                                            <p class="slds-text-body_small slds-text-color_weak">{opp.stageName} &middot; {opp.probabilityLabel}</p>
+                                                        </li>
+                                                    </template>
+                                                </ul>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </article>
+                            </div>
+                        </template>
+                    </div>
+                </template>
+                <template lwc:else>
+                    <p class="slds-text-body_regular slds-text-color_weak slds-p-around_small">
+                        No fund vehicles are linked to this Account.
+                    </p>
+                </template>
+
+            </lightning-tab>
         </lightning-tabset>
     </lightning-card>
 </template>

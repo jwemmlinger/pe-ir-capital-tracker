@@ -36,8 +36,13 @@ It sits on an institutional **Limited Partner (LP)** Account record page and vis
 
 ### Tab 2 — Fundraising Pipeline
 - **Kanban Stage Board** — three PE-aligned columns: *Prospecting / Diligence*, *Legal / Subscription Review*, *Closed Won — Activated*.
-- **Pipeline Datatable** — every related opportunity with fund offering, amount, stage, probability, and expected close.
+- **Pipeline Datatable** — every related opportunity with **linked fund**, fund offering, amount, stage, probability, and expected close.
 - **Activate Commitment** — a row action / button that transitions an Opportunity to **Closed Won** and **automatically instantiates a new FSC `FinServ__FinancialAccount__c` commitment** for the subscribed amount.
+
+### Tab 3 — Fund Vehicles
+- **Fund card grid** of the PE fund vehicles (custom `Fund__c`) linked to the LP Account.
+- Each card shows lifecycle status, type, vintage, a **committed-vs-target progress bar**, capital metrics (committed / invested / target / open pipeline), and fund facts (investors, management fee, term).
+- **Related opportunities** are rolled up per fund (via the `FINS_Private_Equity_Fund__c` lookup on Opportunity) — each card lists its open deals with amount, stage, and probability, plus a headline of open-opportunity count and total amount.
 
 ---
 
@@ -50,7 +55,8 @@ The PE domain is mapped natively onto standard FSC + standard Salesforce objects
 | **Institutional LP** | `Account` | Host of the record page |
 | **Commitment** (fund stake) | `FinServ__FinancialAccount__c` (Record Type: `InvestmentAccount`) | `FinServ__Balance__c` = Committed Capital, `Total_Called_Capital__c`, `Total_Distributions__c`, `Current_NAV__c`, `FinServ__PrimaryOwner__c` → Account |
 | **Ledger Transaction** | `FinServ__FinancialAccountTransaction__c` | `FinServ__TransactionType__c` (Debit = call, Credit = distribution), `FinServ__Amount__c`, `FinServ__TransactionDate__c`, `Reference_Code__c`, `Txn_Status__c` |
-| **Fundraising** | `Opportunity` | `Fund_Offering_Name__c`, `Amount`, `StageName`, `Probability`, `CloseDate` |
+| **Fund Vehicle** | `Fund__c` (custom) | `Committed_Capital__c`, `Invested__c`, `Fund_Target_Amount__c`, `Fundraising_Pipeline__c`, `Fund_Type__c`, `Status__c`, `FINS_Vintage__c`, `Account__c` → Account |
+| **Fundraising** | `Opportunity` | `Fund_Offering_Name__c`, `FINS_Private_Equity_Fund__c` → `Fund__c`, `Amount`, `StageName`, `Probability`, `CloseDate` |
 | **Operational Workflows** | `Task` | Wire verifications, subscription sign-offs, onboarding steps |
 
 ### Custom fields created by this project
@@ -89,7 +95,9 @@ All performance multiples are expressed relative to **paid-in (called) capital**
 pe-ir-capital-tracker/
 ├── README.md
 ├── sfdx-project.json
-├── seed.apex                         # Anonymous Apex to seed demo data
+├── seed.apex                         # Seed commitments, ledger & pipeline opps
+├── seed_funds.apex                   # Seed / complete fully-populated Fund__c records
+├── link_opps.apex                    # Link Opportunities to Fund__c vehicles
 └── force-app/main/default/
     ├── classes/
     │   ├── IRCapitalTrackerController.cls
@@ -197,7 +205,8 @@ The component is restricted to `lightning__RecordPage` on the **Account** object
 | Method | Cacheable | Purpose |
 |---|---|---|
 | `getCapitalSnapshot(accountId)` | ✅ | Returns active commitments + their ledger transactions in one round trip |
-| `getPipeline(accountId)` | ✅ | Returns related opportunities for the Kanban board + datatable |
+| `getPipeline(accountId)` | ✅ | Returns related opportunities (with their linked `Fund__c` name) for the Kanban board + datatable |
+| `getFunds(accountId)` | ✅ | Returns the linked `Fund__c` vehicles with related-opportunity rollups for the Fund Vehicles tab |
 | `finalizeOpportunitySubscription(opportunityId)` | ❌ (DML) | Sets the Opportunity to Closed Won and creates a new `InvestmentAccount` commitment for the subscribed amount, wrapped in a savepoint/rollback |
 
 All SOQL uses `WITH SECURITY_ENFORCED`; numeric values are null-coalesced to `0`; errors surface as `AuraHandledException`.
