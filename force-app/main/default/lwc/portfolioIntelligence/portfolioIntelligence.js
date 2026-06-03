@@ -14,13 +14,16 @@
  * ---------------------------------------------------------------------------
  */
 import { LightningElement, api, track } from 'lwc';
+import { NavigationMixin } from 'lightning/navigation';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
+import createAccount from '@salesforce/apex/PortfolioIntelligenceController.createAccount';
+import addToPipeline from '@salesforce/apex/PortfolioIntelligenceController.addToPipeline';
+import draftOutreach from '@salesforce/apex/PortfolioIntelligenceController.draftOutreach';
 
 // Simulated provider catalog so the "Connect" step feels real.
 const PROVIDERS = [
-    { label: '6sense Revenue AI', value: '6sense' },
-    { label: 'ZoomInfo Intent', value: 'zoominfo' },
-    { label: 'Demandbase One', value: 'demandbase' }
+    { label: 'Crunchbase', value: 'crunchbase' },
+    { label: 'QuickBooks', value: 'quickbooks' }
 ];
 
 // Mock universe of intelligence records the "platform" returns on sync.
@@ -36,6 +39,7 @@ const MOCK_TARGETS = [
         intent: 'Surging',
         signals: ['Hiring 12 RevOps roles', 'Visited pricing page 14x', 'Researching "logistics automation"'],
         recommendation: 'Warm intro via shared board member; lead with platform-consolidation thesis.',
+        website: 'www.northwind.example',
         contact: { name: 'Dana Mercer', title: 'CFO', email: 'dmercer@northwind.example' }
     },
     {
@@ -49,6 +53,7 @@ const MOCK_TARGETS = [
         intent: 'Strong',
         signals: ['New CFO hire (ex-PE portco)', 'Downloaded M&A whitepaper', 'Funding round rumored'],
         recommendation: 'Reach out pre-emptively before round closes; position as growth-equity partner.',
+        website: 'www.helixdx.example',
         contact: { name: 'Arjun Patel', title: 'CEO', email: 'apatel@helixdx.example' }
     },
     {
@@ -62,6 +67,7 @@ const MOCK_TARGETS = [
         intent: 'Moderate',
         signals: ['Expanding into EU', 'Competitor acquired last quarter'],
         recommendation: 'Nurture; share infrastructure-fund case studies and re-engage in 30 days.',
+        website: 'www.cobaltsys.example',
         contact: { name: 'Lena Ortiz', title: 'VP Corp Dev', email: 'lortiz@cobaltsys.example' }
     },
     {
@@ -75,6 +81,7 @@ const MOCK_TARGETS = [
         intent: 'Moderate',
         signals: ['Margin compression in filings', 'Exploring strategic alternatives'],
         recommendation: 'Turnaround candidate; route to operations-focused deal team.',
+        website: 'www.brightloom.example',
         contact: { name: 'Sam Whitfield', title: 'COO', email: 'swhitfield@brightloom.example' }
     },
     {
@@ -88,11 +95,12 @@ const MOCK_TARGETS = [
         intent: 'Surging',
         signals: ['CEO posted "open to inbound"', 'Usage up 40% QoQ', 'Two co-investors circling'],
         recommendation: 'Top priority — move fast; competitive process likely forming.',
+        website: 'www.veridian.example',
         contact: { name: 'Priya Nair', title: 'Founder & CEO', email: 'pnair@veridian.example' }
     }
 ];
 
-export default class PortfolioIntelligence extends LightningElement {
+export default class PortfolioIntelligence extends NavigationMixin(LightningElement) {
     /** Host record (Account/Opportunity/FinancialDeal) — for future wiring. */
     @api recordId;
 
@@ -103,9 +111,10 @@ export default class PortfolioIntelligence extends LightningElement {
     @api minFitScore = 0;
 
     // ---- Reactive state ----
-    @track provider = '6sense';
+    @track provider = 'crunchbase';
     @track isConnected = false;
     @track isSyncing = false;
+    @track isWorking = false;
     @track lastSync;
     @track targets = [];
     @track searchTerm = '';
@@ -253,32 +262,125 @@ export default class PortfolioIntelligence extends LightningElement {
         });
     }
 
-    /** Mock "push to CRM" — in a wired version this creates a Lead/Account. */
-    handleAddToPipeline(event) {
-        const id = event.currentTarget.dataset.id;
-        const target = this.targets.find((t) => t.id === id);
-        this.toast(
-            'Added to pipeline',
-            `${target ? target.company : 'Target'} queued for outreach (mock).`,
-            'success'
-        );
-        this.dispatchEvent(
-            new CustomEvent('addtopipeline', { detail: { target } })
-        );
+    /** Build the Apex TargetInput payload from a mock target row. */
+    toTargetInput(target) {
+        return {
+            company: target.company,
+            sector: target.sector,
+            location: target.location,
+            revenue: target.revenue,
+            employees: target.employees,
+            website: target.website,
+            intent: target.intent,
+            fitScore: target.fitScore,
+            recommendation: target.recommendation,
+            contactName: target.contact ? target.contact.name : null,
+            contactEmail: target.contact ? target.contact.email : null
+        };
     }
 
-    /** Mock "draft outreach" — emits an event a parent/flow could act on. */
-    handleDraftOutreach(event) {
+    findTarget(event) {
         const id = event.currentTarget.dataset.id;
-        const target = this.targets.find((t) => t.id === id);
-        this.toast(
-            'Outreach drafted',
-            `Draft email prepared for ${target ? target.contact.name : 'contact'} (mock).`,
-            'info'
-        );
-        this.dispatchEvent(
-            new CustomEvent('draftoutreach', { detail: { target } })
-        );
+        return this.targets.find((t) => t.id === id);
+    }
+
+    /** Click into a card -> create an Account for the company and open it. */
+    async handleCardClick(event) {
+        // Ignore clicks that originate from the action buttons.
+        if (event.target.closest('lightning-button')) {
+            return;
+        }
+        const target = this.findTarget(event);
+        if (!target) {
+            return;
+        }
+        this.isWorking = true;
+        try {
+            const res = await createAccount({ target: this.toTargetInput(target) });
+            this.toast('Account created', `${target.company} created as an Account.`, 'success');
+            this.navigateToRecord(res.accountId, 'Account');
+        } catch (error) {
+            this.toast('Could not create Account', this.reduceError(error), 'error');
+        } finally {
+            this.isWorking = false;
+        }
+    }
+
+    /** Add to Pipeline -> create Account + FinancialDeal, open the deal. */
+    async handleAddToPipeline(event) {
+        const target = this.findTarget(event);
+        if (!target) {
+            return;
+        }
+        this.isWorking = true;
+        try {
+            const res = await addToPipeline({ target: this.toTargetInput(target) });
+            this.toast(
+                'Added to pipeline',
+                `${target.company}: Account + Financial Deal created.`,
+                'success'
+            );
+            this.dispatchEvent(new CustomEvent('addtopipeline', { detail: { target, ...res } }));
+            this.navigateToRecord(res.dealId, 'FinancialDeal');
+        } catch (error) {
+            this.toast('Could not add to pipeline', this.reduceError(error), 'error');
+        } finally {
+            this.isWorking = false;
+        }
+    }
+
+    /**
+     * Draft Outreach -> create Account + FinancialDeal, navigate to the deal,
+     * and trigger its global Email action so the composer opens.
+     */
+    async handleDraftOutreach(event) {
+        const target = this.findTarget(event);
+        if (!target) {
+            return;
+        }
+        this.isWorking = true;
+        try {
+            const res = await draftOutreach({ target: this.toTargetInput(target) });
+            this.toast(
+                'Outreach started',
+                `${target.company}: Account + Financial Deal created. Opening email…`,
+                'success'
+            );
+            this.dispatchEvent(new CustomEvent('draftoutreach', { detail: { target, ...res } }));
+            // Navigate to the deal and invoke the standard Email quick action.
+            this.navigateToEmail(res.dealId);
+        } catch (error) {
+            this.toast('Could not draft outreach', this.reduceError(error), 'error');
+        } finally {
+            this.isWorking = false;
+        }
+    }
+
+    // ===================== Navigation =====================
+
+    navigateToRecord(recordId, objectApiName) {
+        this[NavigationMixin.Navigate]({
+            type: 'standard__recordPage',
+            attributes: { recordId, objectApiName, actionName: 'view' }
+        });
+    }
+
+    /**
+     * Navigate to the FinancialDeal record and open its standard Email action
+     * so the email composer launches. Requires the SendEmail action to be on
+     * the FinancialDeal page layout (it is, by default, with Activities enabled).
+     */
+    navigateToEmail(recordId) {
+        this[NavigationMixin.Navigate]({
+            type: 'standard__quickAction',
+            attributes: {
+                apiName: 'FinancialDeal.SendEmail'
+            },
+            state: {
+                recordId,
+                backgroundContext: '/lightning/r/FinancialDeal/' + recordId + '/view'
+            }
+        });
     }
 
     // ===================== Utilities =====================

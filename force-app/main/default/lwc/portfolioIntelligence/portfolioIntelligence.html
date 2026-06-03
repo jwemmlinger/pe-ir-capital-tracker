@@ -15,6 +15,10 @@
             </span>
         </div>
 
+        <template lwc:if={isWorking}>
+            <lightning-spinner alternative-text="Working" size="small"></lightning-spinner>
+        </template>
+
         <div class="slds-p-horizontal_medium slds-p-bottom_medium">
 
             <!-- ===== Integration control bar ===== -->
@@ -95,7 +99,8 @@
 
                 <!-- Target company cards -->
                 <template for:each={filteredTargets} for:item="t">
-                    <article key={t.id} class="pi-card slds-box slds-box_x-small slds-m-bottom_small">
+                    <article key={t.id} class="pi-card pi-card_clickable slds-box slds-box_x-small slds-m-bottom_small"
+                        data-id={t.id} onclick={handleCardClick} title="Click to create an Account for this company">
                         <div class="slds-grid slds-grid_align-spread slds-grid_vertical-align-start">
                             <div>
                                 <p class="slds-text-heading_small pi-card__company">{t.company}</p>

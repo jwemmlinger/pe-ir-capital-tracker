@@ -151,18 +151,27 @@ All performance multiples are expressed relative to **paid-in (called) capital**
 `portfolioIntelligence` **mocks an integration with a market-intelligence / intent-data platform** (6sense / ZoomInfo / Demandbase-style) for a PE deal team. It demonstrates the full integration UX — connect to a provider, sync, and review **scored target portfolio companies to reach out to** — without any real callout.
 
 ### Features
-- **Provider selector + Connect** — choose a mock provider (6sense / ZoomInfo / Demandbase) and "authenticate"; a connection pill reflects status.
+- **Provider selector + Connect** — choose a provider (**Crunchbase** / **QuickBooks**) and "authenticate"; a connection pill reflects status.
 - **Sync** — a simulated async pull (mimicking API latency) returns a ranked feed of target companies, sorted by fit score, with a "Last sync" timestamp.
 - **Summary strip** — target count, average fit score, and count of "surging" intent.
 - **Target cards** — each company shows sector / location / revenue / headcount, a **fit-score bar** (color-graded), an **intent badge** (Surging / Strong / Moderate), detected **buying signals**, an AI-style **recommendation**, and the **key contact**.
-- **Actions** — *Draft Outreach* and *Add to Pipeline* fire `draftoutreach` / `addtopipeline` custom events (and toast), ready for a parent/flow to handle.
+- **Click a card → create an Account** for that company (de-duplicated by name) and navigate to it.
+- **Add to Pipeline** → creates an **Account + a FinancialDeal** (the sourced pipeline deal) and opens the deal.
+- **Draft Outreach** → creates an **Account + a FinancialDeal**, then opens the **Email** action on that FinancialDeal so the composer launches.
 - **Filtering** — a live search box plus a configurable **Minimum Fit Score** property.
 
-### It's a mock — how to make it real
-There is **no HTTP callout**; `runMockSync()` resolves a canned dataset after a `setTimeout`. To go live:
-1. Create an Apex `@AuraEnabled` method that performs the callout (Named Credential → the provider's REST API) and returns the **same shape** (`{ id, company, sector, location, revenue, employees, fitScore, intent, signals[], recommendation, contact{} }`).
-2. Replace the body of `runMockSync()` with a call to that method.
-3. Wire *Add to Pipeline* to create a `Lead`/`Account` (or a target record) via Apex.
+### Real DML, mock feed
+The **feed** is still a mock — `runMockSync()` resolves a canned dataset after a `setTimeout` (no HTTP callout). But the **actions are real**: they call `PortfolioIntelligenceController` to create live `Account` and `FinancialDeal` records and navigate via `NavigationMixin`.
+
+| LWC action | Apex method | Result |
+|---|---|---|
+| Click card | `createAccount(target)` | Account (reused if one with the same name exists) → navigate to it |
+| Add to Pipeline | `addToPipeline(target)` | Account + FinancialDeal → navigate to the deal |
+| Draft Outreach | `draftOutreach(target)` | Account + FinancialDeal → open the deal's `SendEmail` action |
+
+To replace the **mock feed** with a live one: create an `@AuraEnabled` method that calls the provider's REST API (via a Named Credential) and returns the same row shape (`{ id, company, sector, location, revenue, employees, fitScore, intent, signals[], recommendation, website, contact{} }`), then point `runMockSync()` at it.
+
+> **Note:** Draft Outreach relies on the standard **`FinancialDeal.SendEmail`** quick action, which requires Activities/Email-to-Case email enabled and the action on the FinancialDeal layout (default when Activities are on). Accounts are de-duplicated by `Name`.
 
 ### Customization (App Builder)
 | Property | Type | Default | Controls |
@@ -186,7 +195,9 @@ pe-ir-capital-tracker/
     │   ├── IRCapitalTrackerController.cls
     │   ├── IRCapitalTrackerController.cls-meta.xml
     │   ├── DealRelationshipBoardController.cls      # load/save board config
-    │   └── DealRelationshipBoardController.cls-meta.xml
+    │   ├── DealRelationshipBoardController.cls-meta.xml
+    │   ├── PortfolioIntelligenceController.cls      # create Account/FinancialDeal
+    │   └── PortfolioIntelligenceController.cls-meta.xml
     ├── lwc/
     │   ├── irCapitalTracker/         # Component 1 — capital tracker
     │   │   ├── irCapitalTracker.html

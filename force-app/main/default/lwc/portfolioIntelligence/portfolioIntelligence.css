@@ -47,6 +47,14 @@
     border-left: 4px solid #0176d3;
     background: #fff;
 }
+.pi-card_clickable {
+    cursor: pointer;
+    transition: box-shadow 0.15s ease, transform 0.15s ease;
+}
+.pi-card_clickable:hover {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+    transform: translateY(-1px);
+}
 .pi-card__company {
     color: #181818;
     font-weight: 700;
