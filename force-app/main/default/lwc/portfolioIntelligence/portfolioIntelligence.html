@@ -1,0 +1,188 @@
+<!--
+  portfolioIntelligence.html
+  Mock Market-Intelligence integration: connect to a provider, sync targeted
+  portfolio companies, and review fit/intent scores, signals, and outreach.
+-->
+<template>
+    <lightning-card icon-name="custom:custom19">
+        <span slot="title" class="slds-text-heading_small">{cardTitle}</span>
+
+        <!-- Connection pill in the card actions slot -->
+        <div slot="actions" class="slds-grid slds-grid_vertical-align-center">
+            <span class={connectionPillClass}>
+                <lightning-icon icon-name="utility:socket" size="xx-small" class="slds-m-right_xx-small"></lightning-icon>
+                {connectionStatusLabel}
+            </span>
+        </div>
+
+        <div class="slds-p-horizontal_medium slds-p-bottom_medium">
+
+            <!-- ===== Integration control bar ===== -->
+            <div class="slds-grid slds-gutters slds-grid_vertical-align-end slds-wrap pi-controls">
+                <div class="slds-col slds-size_1-of-1 slds-medium-size_5-of-12">
+                    <lightning-combobox
+                        name="provider"
+                        label="Intelligence Provider"
+                        value={provider}
+                        options={providerOptions}
+                        onchange={handleProviderChange}>
+                    </lightning-combobox>
+                </div>
+
+                <div class="slds-col slds-size_1-of-2 slds-medium-size_4-of-12 slds-p-top_x-small">
+                    <template lwc:if={isConnected}>
+                        <lightning-button
+                            label={syncButtonLabel}
+                            icon-name="utility:sync"
+                            variant="brand"
+                            onclick={handleSync}
+                            disabled={isSyncing}>
+                        </lightning-button>
+                    </template>
+                    <template lwc:else>
+                        <lightning-button
+                            label="Connect"
+                            icon-name="utility:link"
+                            variant="brand"
+                            onclick={handleConnect}>
+                        </lightning-button>
+                    </template>
+                </div>
+
+                <div class="slds-col slds-size_1-of-2 slds-medium-size_3-of-12 slds-text-align_right slds-p-top_x-small">
+                    <span class="slds-text-body_small slds-text-color_weak">{lastSyncLabel}</span>
+                </div>
+            </div>
+
+            <!-- ===== Loading ===== -->
+            <template lwc:if={isSyncing}>
+                <div class="slds-align_absolute-center slds-p-vertical_large pi-syncing">
+                    <lightning-spinner alternative-text="Syncing" size="small"></lightning-spinner>
+                    <span class="slds-m-left_small slds-text-body_small slds-text-color_weak">
+                        Pulling intent data from {providerLabel}…
+                    </span>
+                </div>
+            </template>
+
+            <!-- ===== Results ===== -->
+            <template lwc:if={hasTargets}>
+                <!-- Summary strip -->
+                <div class="slds-grid slds-gutters slds-wrap pi-summary slds-m-vertical_small">
+                    <div class="slds-col slds-size_1-of-3 slds-text-align_center">
+                        <p class="pi-summary__num">{summary.count}</p>
+                        <p class="pi-summary__lbl">Targets</p>
+                    </div>
+                    <div class="slds-col slds-size_1-of-3 slds-text-align_center">
+                        <p class="pi-summary__num">{summary.avg}</p>
+                        <p class="pi-summary__lbl">Avg Fit Score</p>
+                    </div>
+                    <div class="slds-col slds-size_1-of-3 slds-text-align_center">
+                        <p class="pi-summary__num">{summary.surging}</p>
+                        <p class="pi-summary__lbl">Surging Intent</p>
+                    </div>
+                </div>
+
+                <!-- Search -->
+                <lightning-input
+                    type="search"
+                    label="Filter targets"
+                    variant="label-hidden"
+                    placeholder="Search company or sector…"
+                    value={searchTerm}
+                    onchange={handleSearch}
+                    class="slds-m-bottom_small">
+                </lightning-input>
+
+                <!-- Target company cards -->
+                <template for:each={filteredTargets} for:item="t">
+                    <article key={t.id} class="pi-card slds-box slds-box_x-small slds-m-bottom_small">
+                        <div class="slds-grid slds-grid_align-spread slds-grid_vertical-align-start">
+                            <div>
+                                <p class="slds-text-heading_small pi-card__company">{t.company}</p>
+                                <p class="slds-text-body_small slds-text-color_weak">
+                                    {t.sector} &middot; {t.location} &middot; {t.revenue} &middot; {t.employees} employees
+                                </p>
+                            </div>
+                            <span class={t.intentClass}>{t.intent} intent</span>
+                        </div>
+
+                        <!-- Fit score bar -->
+                        <div class="slds-grid slds-grid_vertical-align-center slds-m-vertical_x-small">
+                            <span class="pi-score-label">Fit</span>
+                            <div class="pi-score-track">
+                                <div class={t.scoreClass} style={t.scoreBarStyle}></div>
+                            </div>
+                            <span class="pi-score-num">{t.fitScore}</span>
+                        </div>
+
+                        <!-- Signals -->
+                        <div class="slds-m-vertical_x-small">
+                            <p class="pi-mini-label">Buying Signals</p>
+                            <ul class="pi-signals">
+                                <template for:each={t.signals} for:item="sig">
+                                    <li key={sig} class="pi-signal">
+                                        <lightning-icon icon-name="utility:trending" size="xx-small" class="slds-m-right_xx-small"></lightning-icon>
+                                        {sig}
+                                    </li>
+                                </template>
+                            </ul>
+                        </div>
+
+                        <!-- Recommendation -->
+                        <div class="pi-reco slds-m-vertical_x-small">
+                            <lightning-icon icon-name="utility:einstein" size="xx-small" class="slds-m-right_xx-small"></lightning-icon>
+                            <span class="slds-text-body_small">{t.recommendation}</span>
+                        </div>
+
+                        <!-- Contact + actions -->
+                        <div class="slds-grid slds-grid_align-spread slds-grid_vertical-align-center slds-m-top_x-small slds-wrap">
+                            <p class="slds-text-body_small slds-text-color_weak">
+                                {t.contact.name} — {t.contact.title} &middot; {t.contact.email}
+                            </p>
+                            <div class="slds-grid slds-gutters_xx-small">
+                                <lightning-button
+                                    label="Draft Outreach"
+                                    icon-name="utility:email"
+                                    variant="neutral"
+                                    data-id={t.id}
+                                    onclick={handleDraftOutreach}
+                                    class="slds-m-right_xx-small">
+                                </lightning-button>
+                                <lightning-button
+                                    label="Add to Pipeline"
+                                    icon-name="utility:add"
+                                    variant="brand"
+                                    data-id={t.id}
+                                    onclick={handleAddToPipeline}>
+                                </lightning-button>
+                            </div>
+                        </div>
+                    </article>
+                </template>
+            </template>
+
+            <!-- ===== Empty state ===== -->
+            <template lwc:if={isConnected}>
+                <template lwc:if={hasTargets}></template>
+                <template lwc:else>
+                    <template lwc:if={isSyncing}></template>
+                    <template lwc:else>
+                        <div class="slds-illustration slds-illustration_small slds-p-vertical_large slds-text-align_center">
+                            <p class="slds-text-body_regular slds-text-color_weak">
+                                Connected to {providerLabel}. Click <strong>Sync Targets</strong> to pull targeted portfolio companies.
+                            </p>
+                        </div>
+                    </template>
+                </template>
+            </template>
+            <template lwc:else>
+                <div class="slds-p-vertical_large slds-text-align_center">
+                    <lightning-icon icon-name="utility:integration" size="small" class="slds-m-bottom_x-small"></lightning-icon>
+                    <p class="slds-text-body_regular slds-text-color_weak">
+                        Connect to a market-intelligence provider to surface target companies for outreach.
+                    </p>
+                </div>
+            </template>
+        </div>
+    </lightning-card>
+</template>

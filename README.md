@@ -8,6 +8,7 @@ The suite contains two components:
 |---|---|---|
 | **`irCapitalTracker`** | Capital commitments, drawdown gauge, PE multiples, ledger, fundraising pipeline, and fund vehicles for an institutional LP | Account record page |
 | **`dealRelationshipBoard`** | An Actionable Relationship Center (ARC)-style graph of a PE deal's participants (co-investors, deal team, counsel, target, intermediaries) | Record / App / Home page |
+| **`portfolioIntelligence`** | A **mock** market-intelligence integration surfacing scored target portfolio companies, buying signals, and suggested outreach | Record / App / Home page |
 
 ![Tab 1 — Capital Performance & Ledger](docs/screenshot-capital.png)
 
@@ -20,6 +21,7 @@ The suite contains two components:
   - [Architecture & Data Model](#architecture--data-model)
   - [PE Financial Logic](#pe-financial-logic)
 - [Component 2 — Deal Relationship Board](#component-2--deal-relationship-board)
+- [Component 3 — Portfolio Market Intelligence](#component-3--portfolio-market-intelligence)
 - [Repository Structure](#repository-structure)
 - [Prerequisites](#prerequisites)
 - [Deployment](#deployment)
@@ -144,6 +146,32 @@ All performance multiples are expressed relative to **paid-in (called) capital**
 
 ---
 
+# Component 3 — Portfolio Market Intelligence
+
+`portfolioIntelligence` **mocks an integration with a market-intelligence / intent-data platform** (6sense / ZoomInfo / Demandbase-style) for a PE deal team. It demonstrates the full integration UX — connect to a provider, sync, and review **scored target portfolio companies to reach out to** — without any real callout.
+
+### Features
+- **Provider selector + Connect** — choose a mock provider (6sense / ZoomInfo / Demandbase) and "authenticate"; a connection pill reflects status.
+- **Sync** — a simulated async pull (mimicking API latency) returns a ranked feed of target companies, sorted by fit score, with a "Last sync" timestamp.
+- **Summary strip** — target count, average fit score, and count of "surging" intent.
+- **Target cards** — each company shows sector / location / revenue / headcount, a **fit-score bar** (color-graded), an **intent badge** (Surging / Strong / Moderate), detected **buying signals**, an AI-style **recommendation**, and the **key contact**.
+- **Actions** — *Draft Outreach* and *Add to Pipeline* fire `draftoutreach` / `addtopipeline` custom events (and toast), ready for a parent/flow to handle.
+- **Filtering** — a live search box plus a configurable **Minimum Fit Score** property.
+
+### It's a mock — how to make it real
+There is **no HTTP callout**; `runMockSync()` resolves a canned dataset after a `setTimeout`. To go live:
+1. Create an Apex `@AuraEnabled` method that performs the callout (Named Credential → the provider's REST API) and returns the **same shape** (`{ id, company, sector, location, revenue, employees, fitScore, intent, signals[], recommendation, contact{} }`).
+2. Replace the body of `runMockSync()` with a call to that method.
+3. Wire *Add to Pipeline* to create a `Lead`/`Account` (or a target record) via Apex.
+
+### Customization (App Builder)
+| Property | Type | Default | Controls |
+|---|---|---|---|
+| **Card Title** (`cardTitle`) | Text | `Market Intelligence — Target Companies` | Component heading |
+| **Minimum Fit Score** (`minFitScore`) | Integer | `0` | Hide targets below this score (0–100) |
+
+---
+
 ## Repository Structure
 
 ```
@@ -165,11 +193,16 @@ pe-ir-capital-tracker/
     │   │   ├── irCapitalTracker.js
     │   │   ├── irCapitalTracker.css
     │   │   └── irCapitalTracker.js-meta.xml
-    │   └── dealRelationshipBoard/    # Component 2 — ARC-style deal board
-    │       ├── dealRelationshipBoard.html
-    │       ├── dealRelationshipBoard.js
-    │       ├── dealRelationshipBoard.css
-    │       └── dealRelationshipBoard.js-meta.xml
+    │   ├── dealRelationshipBoard/    # Component 2 — ARC-style deal board
+    │   │   ├── dealRelationshipBoard.html
+    │   │   ├── dealRelationshipBoard.js
+    │   │   ├── dealRelationshipBoard.css
+    │   │   └── dealRelationshipBoard.js-meta.xml
+    │   └── portfolioIntelligence/    # Component 3 — mock market-intel integration
+    │       ├── portfolioIntelligence.html
+    │       ├── portfolioIntelligence.js
+    │       ├── portfolioIntelligence.css
+    │       └── portfolioIntelligence.js-meta.xml
     ├── objects/                      # Custom object + field metadata
     │   ├── FinServ__FinancialAccount__c/fields/
     │   ├── FinServ__FinancialAccountTransaction__c/fields/
