@@ -23,7 +23,7 @@ import draftOutreach from '@salesforce/apex/PortfolioIntelligenceController.draf
 // Simulated provider catalog so the "Connect" step feels real.
 const PROVIDERS = [
     { label: 'Crunchbase', value: 'crunchbase' },
-    { label: 'QuickBooks', value: 'quickbooks' }
+    { label: 'PitchBook', value: 'pitchbook' }
 ];
 
 // Mock universe of intelligence records the "platform" returns on sync.
@@ -308,6 +308,8 @@ export default class PortfolioIntelligence extends NavigationMixin(LightningElem
 
     /** Add to Pipeline -> create Account + FinancialDeal, open the deal. */
     async handleAddToPipeline(event) {
+        // Prevent the click from also bubbling to the card handler.
+        event.stopPropagation();
         const target = this.findTarget(event);
         if (!target) {
             return;
@@ -334,6 +336,8 @@ export default class PortfolioIntelligence extends NavigationMixin(LightningElem
      * and trigger its global Email action so the composer opens.
      */
     async handleDraftOutreach(event) {
+        // Prevent the click from also bubbling to the card handler.
+        event.stopPropagation();
         const target = this.findTarget(event);
         if (!target) {
             return;
@@ -366,19 +370,19 @@ export default class PortfolioIntelligence extends NavigationMixin(LightningElem
     }
 
     /**
-     * Navigate to the FinancialDeal record and open its standard Email action
-     * so the email composer launches. Requires the SendEmail action to be on
-     * the FinancialDeal page layout (it is, by default, with Activities enabled).
+     * Open the FinancialDeal record page. The standard__quickAction nav type is
+     * unreliable from a component on a different page (it binds to the current
+     * page's record context), so instead we navigate to the deal's record page
+     * and request its Email tab; the user clicks Email from the activity
+     * composer there. This reliably lands the user on the deal.
      */
     navigateToEmail(recordId) {
         this[NavigationMixin.Navigate]({
-            type: 'standard__quickAction',
+            type: 'standard__recordPage',
             attributes: {
-                apiName: 'FinancialDeal.SendEmail'
-            },
-            state: {
                 recordId,
-                backgroundContext: '/lightning/r/FinancialDeal/' + recordId + '/view'
+                objectApiName: 'FinancialDeal',
+                actionName: 'view'
             }
         });
     }

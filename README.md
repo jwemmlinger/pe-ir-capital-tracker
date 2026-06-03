@@ -151,7 +151,7 @@ All performance multiples are expressed relative to **paid-in (called) capital**
 `portfolioIntelligence` **mocks an integration with a market-intelligence / intent-data platform** (6sense / ZoomInfo / Demandbase-style) for a PE deal team. It demonstrates the full integration UX — connect to a provider, sync, and review **scored target portfolio companies to reach out to** — without any real callout.
 
 ### Features
-- **Provider selector + Connect** — choose a provider (**Crunchbase** / **QuickBooks**) and "authenticate"; a connection pill reflects status.
+- **Provider selector + Connect** — choose a provider (**Crunchbase** / **PitchBook**) and "authenticate"; a connection pill reflects status.
 - **Sync** — a simulated async pull (mimicking API latency) returns a ranked feed of target companies, sorted by fit score, with a "Last sync" timestamp.
 - **Summary strip** — target count, average fit score, and count of "surging" intent.
 - **Target cards** — each company shows sector / location / revenue / headcount, a **fit-score bar** (color-graded), an **intent badge** (Surging / Strong / Moderate), detected **buying signals**, an AI-style **recommendation**, and the **key contact**.
